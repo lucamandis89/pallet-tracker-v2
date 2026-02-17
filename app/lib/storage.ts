@@ -1,15 +1,21 @@
-// app/lib/storage.ts
-// Client-only storage helpers (localStorage) — SSR-safe (no window access on server).
-// ⚠️ This file is intentionally permissive (types + function overloads) to avoid TS build breaks
-// when pages import older/newer helper names.
+/* app/lib/storage.ts
+   LocalStorage-backed “database” for the Pallet Tracker.
+   Exports are intentionally explicit so pages can import named helpers.
+*/
 
-export type IdName = { id: string; name: string };
+export type PalletItem = {
+  id: string;
+  type: string;        // e.g. "EUR / EPAL"
+  qty: number;
+  depot?: string;
+  createdAt: number;
+};
 
-export type StockLocationKind = "shop" | "depot";
-export type PalletType = "EUR/EPAL" | "CHEP" | "LPR" | "IFCO" | "CP" | "ALTRO";
-export type PalletStatus = "IN_STOCK" | "IN_TRANSIT" | "DELIVERED" | "MISSING";
+export type DepotOption = {
+  id: string;
+  label: string;
+};
 
-// Drivers in your pages currently expect address/lat/lng/notes.
 export type DriverItem = {
   id: string;
   name: string;
@@ -18,21 +24,7 @@ export type DriverItem = {
   lat?: number;
   lng?: number;
   notes?: string;
-  note?: string;
   createdAt: number;
-  updatedAt: number;
-};
-
-export type DepotItem = {
-  id: string;
-  name: string;
-  address?: string;
-  lat?: number;
-  lng?: number;
-  notes?: string;
-  note?: string;
-  createdAt: number;
-  updatedAt: number;
 };
 
 export type ShopItem = {
@@ -42,509 +34,265 @@ export type ShopItem = {
   lat?: number;
   lng?: number;
   notes?: string;
-  note?: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type PalletItem = {
-  id: string; // palletId
-  type?: PalletType;
-  status?: PalletStatus;
-  locationKind?: StockLocationKind;
-  locationId?: string;
-  driverId?: string;
-  note?: string;
-  notes?: string;
-  updatedAt: number;
   createdAt: number;
 };
 
-export type HistoryAction =
-  | "SCAN"
-  | "REGISTER"
-  | "MOVE"
-  | "DELIVERED"
-  | "MISSING"
-  | "FOUND"
-  | "NOTE"
-  | "STOCK";
+export type StockLocationKind = "DEPOT" | "SHOP";
 
-export type HistoryItem = {
+export type StockMove = {
   id: string;
-  palletId: string;
-  action: HistoryAction;
-  note?: string;
-  locationKind?: StockLocationKind;
-  locationId?: string;
-  driverId?: string;
-  ts: number;
-};
-
-// Some pages use these names
-export type ScanHistoryItem = HistoryItem;
-
-export type StockMoveItem = {
-  id: string;
-  palletId: string;
-  fromKind?: StockLocationKind;
-  fromId?: string;
-  toKind?: StockLocationKind;
-  toId?: string;
+  kind: "IN" | "OUT";
+  palletType: string;
+  qty: number;
+  locationKind: StockLocationKind;
+  locationId: string; // depotId or shopId
   driverId?: string;
   note?: string;
   createdAt: number;
 };
 
-export type QrScanItem = { id: string; payload: string; ts: number };
-
-export type MissingItem = {
-  id: string;
-  palletId: string;
-  note?: string;
-  createdAt: number;
-  resolved?: boolean;
-  resolvedAt?: number;
+export type StockRow = {
+  palletType: string;
+  locationKind: StockLocationKind;
+  locationId: string;
+  balance: number;
 };
 
-// -------------------------
-// Keys
-// -------------------------
+export type ScanHistoryItem = {
+  id: string;
+  raw: string;
+  parsed?: any;
+  createdAt: number;
+};
+
 const KEYS = {
-  shops: "pt_shops_v2",
-  depots: "pt_depots_v2",
-  drivers: "pt_drivers_v2",
-  pallets: "pt_pallets_v2",
-  history: "pt_history_v2",
-  stockMoves: "pt_stock_moves_v2",
-  qrScans: "pt_qr_scans_v2",
-  lastScan: "pt_last_scan_v2",
-  missing: "pt_missing_v2",
-} as const;
+  PALLETS: "pt_pallets",
+  LAST_SCAN: "pt_lastScan",
+  HISTORY: "pt_history",
+  DEPOTS: "pt_depots",
+  DRIVERS: "pt_drivers",
+  SHOPS: "pt_shops",
+  STOCK_MOVES: "pt_stockMoves",
+};
 
-// -------------------------
-// Safe localStorage helpers
-// -------------------------
-function hasStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
-function load<T>(key: string, fallback: T): T {
-  if (!hasStorage()) return fallback;
+function safeParse<T>(v: string | null, fallback: T): T {
+  if (!v) return fallback;
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    return JSON.parse(v) as T;
   } catch {
     return fallback;
   }
 }
 
-function save<T>(key: string, value: T): void {
-  if (!hasStorage()) return;
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
+function readArr<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<T[]>(localStorage.getItem(key), []);
 }
 
-function now(): number {
-  return Date.now();
+function writeArr<T>(key: string, arr: T[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, JSON.stringify(arr));
 }
 
-function uid(prefix = "id"): string {
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+function readObj<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  return safeParse<T>(localStorage.getItem(key), fallback);
 }
 
-export function formatDT(ts: number): string {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return String(ts);
-  }
+function writeObj<T>(key: string, obj: T) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, JSON.stringify(obj));
 }
 
-// -------------------------
-// HISTORY
-// -------------------------
-export function getHistory(): HistoryItem[] {
-  return load<HistoryItem[]>(KEYS.history, []);
+export function uid(prefix = "id"): string {
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
-export function addHistory(e: Omit<HistoryItem, "id" | "ts"> & { ts?: number }): HistoryItem {
-  const list = getHistory();
-  const item: HistoryItem = {
-    id: uid("hist"),
-    ts: e.ts ?? now(),
-    palletId: (e.palletId || "").trim(),
-    action: e.action,
-    note: e.note,
-    locationKind: e.locationKind,
-    locationId: e.locationId,
-    driverId: e.driverId,
-  };
-  list.unshift(item);
-  save(KEYS.history, list);
-  return item;
-}
+/* ---------------- Pallets (simple list) ---------------- */
 
-export function clearHistory(): void {
-  save<HistoryItem[]>(KEYS.history, []);
-}
-
-// Aliases
-export const getScanHistory = getHistory;
-export const addScanHistory = addHistory;
-export const clearScanHistory = clearHistory;
-
-// Some pages import exactly these names
-export const historyToCsv = (items?: ScanHistoryItem[], filename = "history.csv"): void => {
-  downloadCsv(items as unknown as HistoryItem[] | undefined, filename);
-};
-
-// -------------------------
-// LAST SCAN
-// -------------------------
-export type LastScan = {
-  id?: string;
-  payload?: string;
-  text?: string;
-  ts: number;
-};
-
-export function getLastScan(): LastScan | null {
-  return load<LastScan | null>(KEYS.lastScan, null);
-}
-
-export function setLastScan(s: Partial<LastScan> | null): void {
-  if (!s) {
-    save<LastScan | null>(KEYS.lastScan, null);
-    return;
-  }
-  const prev = getLastScan();
-  const merged: LastScan = {
-    ts: s.ts ?? prev?.ts ?? now(),
-    id: s.id ?? prev?.id,
-    payload: s.payload ?? prev?.payload,
-    text: s.text ?? prev?.text,
-  };
-  save(KEYS.lastScan, merged);
-}
-
-// -------------------------
-// PALLETS
-// -------------------------
 export function getPallets(): PalletItem[] {
-  return load<PalletItem[]>(KEYS.pallets, []);
+  return readArr<PalletItem>(KEYS.PALLETS).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export function setPallets(list: PalletItem[]): void {
-  save(KEYS.pallets, list);
+export function setPallets(items: PalletItem[]) {
+  writeArr<PalletItem>(KEYS.PALLETS, items);
 }
 
-export function upsertPallet(p: Partial<PalletItem> & { id: string }): PalletItem {
-  const id = (p.id || "").trim();
-  const list = getPallets();
-  const i = list.findIndex((x) => x.id === id);
-  const base: PalletItem =
-    i >= 0
-      ? list[i]
-      : {
-          id,
-          createdAt: now(),
-          updatedAt: now(),
-        };
-
-  const next: PalletItem = {
-    ...base,
-    ...p,
-    id,
-    createdAt: base.createdAt ?? now(),
-    updatedAt: now(),
-  };
-
-  if (i >= 0) list[i] = next;
-  else list.unshift(next);
-
-  setPallets(list);
-  return next;
+export function upsertPallet(item: PalletItem) {
+  const all = getPallets();
+  const idx = all.findIndex((x) => x.id === item.id);
+  if (idx >= 0) all[idx] = item;
+  else all.unshift(item);
+  setPallets(all);
 }
 
-export function deletePallet(id: string): void {
+export function removePallet(id: string) {
   setPallets(getPallets().filter((x) => x.id !== id));
 }
 
-export const removePallet = deletePallet;
+/* ---------------- Depots ---------------- */
 
-// -------------------------
-// SCANS / STOCK MOVES (very lightweight)
-// -------------------------
-export function getStockMoves(): StockMoveItem[] {
-  return load<StockMoveItem[]>(KEYS.stockMoves, []);
+export function getDepotOptions(): DepotOption[] {
+  const arr = readArr<DepotOption>(KEYS.DEPOTS);
+  // Default depots if empty:
+  if (!arr.length) {
+    const seed: DepotOption[] = [
+      { id: "DEPOT_MAIN", label: "Deposito principale" },
+      { id: "DEPOT_2", label: "Deposito 2" },
+    ];
+    writeArr(KEYS.DEPOTS, seed);
+    return seed;
+  }
+  return arr;
 }
 
-export function setStockMoves(list: StockMoveItem[]): void {
-  save(KEYS.stockMoves, list);
+export function setDepotOptions(items: DepotOption[]) {
+  writeArr<DepotOption>(KEYS.DEPOTS, items);
 }
 
-export function addStockMove(m: Omit<StockMoveItem, "id" | "createdAt"> & { createdAt?: number }): StockMoveItem {
-  const list = getStockMoves();
-  const item: StockMoveItem = {
-    id: uid("move"),
-    createdAt: m.createdAt ?? now(),
-    palletId: (m.palletId || "").trim(),
-    fromKind: m.fromKind,
-    fromId: m.fromId,
-    toKind: m.toKind,
-    toId: m.toId,
-    driverId: m.driverId,
-    note: m.note,
-  };
-  list.unshift(item);
-  setStockMoves(list);
-  return item;
+export function getDefaultDepot(): string {
+  const opts = getDepotOptions();
+  return opts[0]?.id ?? "DEPOT_MAIN";
 }
 
-// Pages sometimes call this "upsertScan" (we store it as a history SCAN entry).
-export function upsertScan(input: any): HistoryItem {
-  // Accept anything: { palletId, payload, text, ... }
-  const palletId = (input?.palletId ?? input?.id ?? "").toString();
-  const note = input?.note ?? input?.text ?? input?.payload;
-  const h = addHistory({ palletId, action: "SCAN", note });
-  setLastScan({ ts: h.ts, id: h.palletId, payload: String(input?.payload ?? ""), text: String(note ?? "") });
-  return h;
-}
+/* ---------------- Drivers ---------------- */
 
-// -------------------------
-// DRIVERS
-// -------------------------
 export function getDrivers(): DriverItem[] {
-  return load<DriverItem[]>(KEYS.drivers, []);
+  return readArr<DriverItem>(KEYS.DRIVERS).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export function setDrivers(list: DriverItem[]): void {
-  save(KEYS.drivers, list);
-}
-
-// Supports both: addDriver(name, phone?) and addDriver({name, phone, address, ...})
-export function addDriver(name: string, phone?: string): DriverItem;
-export function addDriver(obj: Partial<DriverItem> & { name: string }): DriverItem;
-export function addDriver(a: any, b?: any): DriverItem {
-  const list = getDrivers();
-  const isObj = typeof a === "object" && a !== null;
-  const name = (isObj ? a.name : a || "").toString().trim();
-  const phone = (isObj ? a.phone : b) as string | undefined;
-
-  const item: DriverItem = {
-    id: uid("drv"),
-    name,
-    phone,
-    address: isObj ? a.address : undefined,
-    lat: isObj ? a.lat : undefined,
-    lng: isObj ? a.lng : undefined,
-    notes: isObj ? a.notes ?? a.note : undefined,
-    note: isObj ? a.note : undefined,
-    createdAt: now(),
-    updatedAt: now(),
-  };
-
-  list.unshift(item);
-  setDrivers(list);
+export function addDriver(d: Omit<DriverItem, "id" | "createdAt">) {
+  const all = getDrivers();
+  const item: DriverItem = { id: uid("drv"), createdAt: Date.now(), ...d };
+  all.unshift(item);
+  writeArr(KEYS.DRIVERS, all);
   return item;
 }
 
-export function updateDriver(id: string, patch: Partial<DriverItem>): DriverItem | null {
-  const list = getDrivers();
-  const idx = list.findIndex((x) => x.id === id);
+export function updateDriver(id: string, patch: Partial<Omit<DriverItem, "id" | "createdAt">>) {
+  const all = getDrivers();
+  const idx = all.findIndex((x) => x.id === id);
   if (idx < 0) return null;
-  list[idx] = { ...list[idx], ...patch, updatedAt: now() };
-  setDrivers(list);
-  return list[idx];
+  all[idx] = { ...all[idx], ...patch };
+  writeArr(KEYS.DRIVERS, all);
+  return all[idx];
 }
 
-export function deleteDriver(id: string): void {
-  setDrivers(getDrivers().filter((x) => x.id !== id));
+export function removeDriver(id: string) {
+  writeArr(KEYS.DRIVERS, getDrivers().filter((x) => x.id !== id));
 }
 
-export const removeDriver = deleteDriver;
+/* ---------------- Shops ---------------- */
 
-// -------------------------
-// SHOPS
-// -------------------------
 export function getShops(): ShopItem[] {
-  return load<ShopItem[]>(KEYS.shops, []);
+  return readArr<ShopItem>(KEYS.SHOPS).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export function setShops(list: ShopItem[]): void {
-  save(KEYS.shops, list);
-}
-
-export function addShop(name: string, address?: string, note?: string): ShopItem {
-  const list = getShops();
-  const item: ShopItem = {
-    id: uid("shop"),
-    name: (name || "").trim(),
-    address,
-    note,
-    notes: note,
-    createdAt: now(),
-    updatedAt: now(),
-  };
-  list.unshift(item);
-  setShops(list);
+export function addShop(s: Omit<ShopItem, "id" | "createdAt">) {
+  const all = getShops();
+  const item: ShopItem = { id: uid("shop"), createdAt: Date.now(), ...s };
+  all.unshift(item);
+  writeArr(KEYS.SHOPS, all);
   return item;
 }
 
-export function updateShop(id: string, patch: Partial<ShopItem>): ShopItem | null {
-  const list = getShops();
-  const idx = list.findIndex((x) => x.id === id);
+export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id" | "createdAt">>) {
+  const all = getShops();
+  const idx = all.findIndex((x) => x.id === id);
   if (idx < 0) return null;
-  list[idx] = { ...list[idx], ...patch, updatedAt: now() };
-  setShops(list);
-  return list[idx];
+  all[idx] = { ...all[idx], ...patch };
+  writeArr(KEYS.SHOPS, all);
+  return all[idx];
 }
 
-export function deleteShop(id: string): void {
-  setShops(getShops().filter((x) => x.id !== id));
+export function removeShop(id: string) {
+  writeArr(KEYS.SHOPS, getShops().filter((x) => x.id !== id));
 }
 
-export const removeShop = deleteShop;
+/* ---------------- Scan (Last + History) ---------------- */
 
-// -------------------------
-// DEPOTS
-// -------------------------
-export function getDepots(): DepotItem[] {
-  return load<DepotItem[]>(KEYS.depots, []);
+export function getLastScan(): any {
+  return readObj<any>(KEYS.LAST_SCAN, null);
 }
 
-export function setDepots(list: DepotItem[]): void {
-  save(KEYS.depots, list);
+export function setLastScan(v: any) {
+  writeObj(KEYS.LAST_SCAN, v);
 }
 
-export function addDepot(name: string, address?: string, note?: string): DepotItem {
-  const list = getDepots();
-  const item: DepotItem = {
-    id: uid("dep"),
-    name: (name || "").trim(),
-    address,
-    note,
-    notes: note,
-    createdAt: now(),
-    updatedAt: now(),
-  };
-  list.unshift(item);
-  setDepots(list);
+export function getHistory(): ScanHistoryItem[] {
+  return readArr<ScanHistoryItem>(KEYS.HISTORY).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function addHistory(raw: string, parsed?: any) {
+  const all = getHistory();
+  const item: ScanHistoryItem = { id: uid("hist"), raw, parsed, createdAt: Date.now() };
+  all.unshift(item);
+  writeArr(KEYS.HISTORY, all);
   return item;
 }
 
-export function updateDepot(id: string, patch: Partial<DepotItem>): DepotItem | null {
-  const list = getDepots();
-  const idx = list.findIndex((x) => x.id === id);
-  if (idx < 0) return null;
-  list[idx] = { ...list[idx], ...patch, updatedAt: now() };
-  setDepots(list);
-  return list[idx];
+export function clearHistory() {
+  writeArr(KEYS.HISTORY, []);
 }
 
-export function deleteDepot(id: string): void {
-  setDepots(getDepots().filter((x) => x.id !== id));
+/* ---------------- Stock Moves ---------------- */
+
+export function getStockMoves(): StockMove[] {
+  return readArr<StockMove>(KEYS.STOCK_MOVES).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export const removeDepot = deleteDepot;
-
-// -------------------------
-// MISSING
-// -------------------------
-export function getMissing(): MissingItem[] {
-  return load<MissingItem[]>(KEYS.missing, []);
-}
-
-export function setMissing(list: MissingItem[]): void {
-  save(KEYS.missing, list);
-}
-
-export function addMissing(palletId: string, note?: string): MissingItem {
-  const list = getMissing();
-  const item: MissingItem = {
-    id: uid("miss"),
-    palletId: (palletId || "").trim(),
-    note,
-    createdAt: now(),
-    resolved: false,
-  };
-  list.unshift(item);
-  setMissing(list);
+export function addStockMove(m: Omit<StockMove, "id" | "createdAt">) {
+  const all = getStockMoves();
+  const item: StockMove = { id: uid("mv"), createdAt: Date.now(), ...m };
+  all.unshift(item);
+  writeArr(KEYS.STOCK_MOVES, all);
   return item;
 }
 
-export function resolveMissing(id: string): MissingItem | null {
-  const list = getMissing();
-  const idx = list.findIndex((x) => x.id === id);
-  if (idx < 0) return null;
-  list[idx] = { ...list[idx], resolved: true, resolvedAt: now() };
-  setMissing(list);
-  return list[idx];
+export function removeStockMove(id: string) {
+  writeArr(KEYS.STOCK_MOVES, getStockMoves().filter((x) => x.id !== id));
 }
 
-// -------------------------
-// CSV DOWNLOAD
-// -------------------------
-function escCsv(v: unknown): string {
-  return `"${(v ?? "").toString().replaceAll('"', '""')}"`;
+/* Compute current balances grouped by (palletType, locationKind, locationId) */
+export function getStockRows(): StockRow[] {
+  const moves = getStockMoves();
+  const map = new Map<string, StockRow>();
+
+  for (const mv of moves) {
+    const key = `${mv.palletType}__${mv.locationKind}__${mv.locationId}`;
+    const prev = map.get(key) ?? {
+      palletType: mv.palletType,
+      locationKind: mv.locationKind,
+      locationId: mv.locationId,
+      balance: 0,
+    };
+    const delta = mv.kind === "IN" ? mv.qty : -mv.qty;
+    prev.balance += delta;
+    map.set(key, prev);
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.balance - a.balance);
 }
 
-function buildCsvFromRows(headers: string[], rows: Array<Array<unknown>>): string {
-  const lines = [headers.join(","), ...rows.map((r) => r.map(escCsv).join(","))];
-  return lines.join("\n");
-}
+/* CSV export helpers */
+export function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
+  if (typeof window === "undefined") return;
 
-function triggerCsvDownload(csv: string, filename: string): void {
-  if (!hasStorage()) return;
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const escape = (v: any) => {
+    const s = String(v ?? "");
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+
+  const csv = rows.map((r) => r.map(escape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 500);
+  URL.revokeObjectURL(url);
 }
-
-// Supports two call styles used across pages:
-// 1) downloadCsv(items?, filename?)  where items are HistoryItem[]
-// 2) downloadCsv(filename, headers, rows)
-export function downloadCsv(): void;
-export function downloadCsv(items?: HistoryItem[], filename?: string): void;
-export function downloadCsv(filename: string, headers: string[], rows: Array<Array<unknown>>): void;
-export function downloadCsv(a?: any, b?: any, c?: any): void {
-  // style #2
-  if (typeof a === "string" && Array.isArray(b) && Array.isArray(c)) {
-    const filename = a;
-    const headers = b as string[];
-    const rows = c as Array<Array<unknown>>;
-    triggerCsvDownload(buildCsvFromRows(headers, rows), filename);
-    return;
-  }
-
-  // style #1
-  const items = (Array.isArray(a) ? (a as HistoryItem[]) : undefined) ?? getHistory();
-  const filename = (typeof b === "string" ? b : "history.csv") as string;
-
-  const headers = ["ts", "palletId", "action", "note", "locationKind", "locationId", "driverId"];
-  const rows = items
-    .slice()
-    .reverse()
-    .map((r) => [formatDT(r.ts), r.palletId, r.action, r.note ?? "", r.locationKind ?? "", r.locationId ?? "", r.driverId ?? ""]);
-
-  triggerCsvDownload(buildCsvFromRows(headers, rows), filename);
-}
-
-
-
-// ---- Compatibility exports (some pages expect these names) ----
-// Older UI pages import getStockRows; it is the same data as getStockMoves.
-export const getStockRows = getStockMoves;
-// Some codebases refer to a generic StockRow type.
-export type StockRow = StockMoveItem;
