@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { addDriver, downloadCsv, getDrivers, removeDriver, updateDriver, DriverItem } from "../lib/storage";
+// Import con alias per evitare conflitti con eventuali altre definizioni di downloadCsv
+import {
+  addDriver,
+  getDrivers,
+  removeDriver,
+  updateDriver,
+  DriverItem,
+  downloadCsv as downloadCsvFromStorage, // alias per sicurezza
+} from "../lib/storage";
 
 async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
   return new Promise((resolve, reject) => {
@@ -139,7 +147,8 @@ export default function DriversPage() {
 
   function exportCsv() {
     const all = getDrivers();
-    downloadCsv(
+    // ✅ Uso l'alias per chiamare la funzione con 3 argomenti
+    downloadCsvFromStorage(
       "autisti.csv",
       ["id", "name", "phone", "address", "lat", "lng", "notes", "createdAt"],
       all.map((d) => [
