@@ -1,15 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-// Import con alias per evitare conflitti con eventuali altre definizioni di downloadCsv
-import {
-  addDriver,
-  getDrivers,
-  removeDriver,
-  updateDriver,
-  DriverItem,
-  downloadCsv as downloadCsvFromStorage, // alias per sicurezza
-} from "../lib/storage";
+// 👇 Import dell'intero modulo (nessuna ambiguità)
+import * as storage from "../lib/storage";
 
 async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
   return new Promise((resolve, reject) => {
@@ -29,7 +22,7 @@ async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: n
 }
 
 export default function DriversPage() {
-  const [items, setItems] = useState<DriverItem[]>([]);
+  const [items, setItems] = useState<storage.DriverItem[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const emptyForm = useMemo(
@@ -48,7 +41,7 @@ export default function DriversPage() {
   const [msg, setMsg] = useState<string>("");
 
   function reload() {
-    setItems(getDrivers());
+    setItems(storage.getDrivers());
   }
 
   useEffect(() => {
@@ -61,7 +54,7 @@ export default function DriversPage() {
     setMsg("");
   }
 
-  function startEdit(it: DriverItem) {
+  function startEdit(it: storage.DriverItem) {
     setEditingId(it.id);
     setForm({
       name: it.name || "",
@@ -76,7 +69,7 @@ export default function DriversPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo autista?")) return;
-    removeDriver(id);
+    storage.removeDriver(id);
     reload();
     if (editingId === id) resetForm();
   }
@@ -110,7 +103,7 @@ export default function DriversPage() {
     }
 
     if (editingId) {
-      updateDriver(editingId, {
+      storage.updateDriver(editingId, {
         name,
         phone: phone || undefined,
         address: address || undefined,
@@ -125,7 +118,7 @@ export default function DriversPage() {
     }
 
     try {
-      addDriver({
+      storage.addDriver({
         name,
         phone: phone || undefined,
         address: address || undefined,
@@ -146,9 +139,9 @@ export default function DriversPage() {
   }
 
   function exportCsv() {
-    const all = getDrivers();
-    // ✅ Uso l'alias per chiamare la funzione con 3 argomenti
-    downloadCsvFromStorage(
+    const all = storage.getDrivers();
+    // ✅ Chiamata inequivocabile tramite l'oggetto modulo
+    storage.downloadCsv(
       "autisti.csv",
       ["id", "name", "phone", "address", "lat", "lng", "notes", "createdAt"],
       all.map((d) => [
