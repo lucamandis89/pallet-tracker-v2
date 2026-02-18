@@ -3,14 +3,7 @@
 import React, { useState } from "react";
 import * as storage from "../lib/storage";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-// Import dinamico di qrcode.react (solo lato client)
-// Gestisce sia export default che export named
-const QRCode = dynamic(
-  () => import("qrcode.react").then((mod) => mod.default || mod.QRCode),
-  { ssr: false, loading: () => <div style={{ width: 200, height: 200, background: "#f0f0f0", borderRadius: 16 }} /> }
-);
+import QRCode from "react-qr-code";
 
 const palletTypes: storage.PalletType[] = [
   "CHEP",
@@ -161,12 +154,25 @@ export default function QrGeneratorPage() {
               </button>
               <button
                 onClick={() => {
-                  const canvas = document.querySelector("canvas");
-                  if (canvas) {
-                    const link = document.createElement("a");
-                    link.download = `QR-${generatedCode}.png`;
-                    link.href = canvas.toDataURL();
-                    link.click();
+                  const svg = document.querySelector("svg");
+                  if (svg) {
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+                    const img = new Image();
+                    const svgData = new XMLSerializer().serializeToString(svg);
+                    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                    const url = URL.createObjectURL(svgBlob);
+                    img.onload = () => {
+                      canvas.width = img.width;
+                      canvas.height = img.height;
+                      ctx?.drawImage(img, 0, 0);
+                      URL.revokeObjectURL(url);
+                      const link = document.createElement("a");
+                      link.download = `QR-${generatedCode}.png`;
+                      link.href = canvas.toDataURL();
+                      link.click();
+                    };
+                    img.src = url;
                   }
                 }}
                 style={{
