@@ -3,12 +3,19 @@
 import React, { useEffect, useState, useRef } from "react";
 import * as storage from "../lib/storage";
 import { Html5QrcodeScanner } from "html5-qrcode";
+import Link from "next/link";
 
 export default function PalletsPage() {
   const [pallets, setPallets] = useState<storage.PalletItem[]>([]);
+  const [filteredPallets, setFilteredPallets] = useState<storage.PalletItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<string>("");
   const [showScanner, setShowScanner] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [foundPallet, setFoundPallet] = useState<storage.PalletItem | null>(null);
+  const [showHistory, setShowHistory] = useState<string | null>(null);
+  const [historyEvents, setHistoryEvents] = useState<storage.ScanEvent[]>([]);
+
   const [form, setForm] = useState({
     code: "",
     altCode: "",
@@ -20,20 +27,46 @@ export default function PalletsPage() {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const scannerContainerId = "qr-reader";
 
+  const typeIcons: Record<string, string> = {
+    CHEP: "🔵", LPR: "💗", EPAL: "🟫", "DUSS CHEP": "🔵⚙️", "DUSS LPR": "💗⚙️",
+    "MINI PALLET DUSS": "📦⚙️", GENERICHE: "📦", "IFCO VERDI": "🟢", "IFCO ROSSE": "🔴",
+    "IFCO MARRONI": "🟤", ROLL: "🛒",
+  };
+
   function reload() {
-    setPallets(storage.getPallets());
+    const all = storage.getPallets();
+    setPallets(all);
+    applyFilters(all, searchTerm, filterType);
+  }
+
+  function applyFilters(items: storage.PalletItem[], search: string, type: string) {
+    let filtered = items;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.code.toLowerCase().includes(s) || 
+        p.altCode?.toLowerCase().includes(s) ||
+        p.notes?.toLowerCase().includes(s)
+      );
+    }
+    if (type) {
+      filtered = filtered.filter(p => p.type === type);
+    }
+    setFilteredPallets(filtered);
   }
 
   useEffect(() => {
     reload();
   }, []);
 
-  // Avvia lo scanner
+  useEffect(() => {
+    applyFilters(pallets, searchTerm, filterType);
+  }, [searchTerm, filterType, pallets]);
+
   const startScanner = () => {
     setShowScanner(true);
     setScanResult(null);
     setFoundPallet(null);
-
     setTimeout(() => {
       if (!scannerRef.current) {
         scannerRef.current = new Html5QrcodeScanner(
@@ -41,7 +74,6 @@ export default function PalletsPage() {
           { fps: 10, qrbox: { width: 250, height: 250 } },
           false
         );
-
         scannerRef.current.render(
           (decodedText) => handleScan(decodedText),
           (error) => console.warn("Scan error:", error)
@@ -50,17 +82,43 @@ export default function PalletsPage() {
     }, 100);
   };
 
-  const handleScan = (code: string) => {
+  const handleScan = async (code: string) => {
     if (scannerRef.current) {
       scannerRef.current.clear();
       scannerRef.current = null;
     }
     setShowScanner(false);
     setScanResult(code);
+
+    let lat, lng, accuracy;
+    try {
+      const pos = await storage.getCurrentPosition();
+      lat = pos.lat;
+      lng = pos.lng;
+      accuracy = pos.accuracy;
+    } catch (err) {
+      console.warn("Posizione non disponibile");
+    }
+
+    storage.addHistory({
+      code,
+      ts: Date.now(),
+      lat,
+      lng,
+      accuracy,
+      source: "qr",
+    });
+
     const pallet = storage.findPalletByCode(code);
-    setFoundPallet(pallet);
     if (pallet) {
-      // Precompila il form con i dati del pallet trovato
+      storage.upsertPallet({
+        code,
+        lastSeenTs: Date.now(),
+        lastLat: lat,
+        lastLng: lng,
+        lastSource: "qr",
+      });
+      setFoundPallet(pallet);
       setForm({
         code: pallet.code,
         altCode: pallet.altCode || "",
@@ -69,9 +127,10 @@ export default function PalletsPage() {
         notes: pallet.notes || "",
       });
     } else {
-      // Nuovo pallet: preimposta il codice
+      setFoundPallet(null);
       setForm({ ...form, code });
     }
+    reload();
   };
 
   const stopScanner = () => {
@@ -84,13 +143,10 @@ export default function PalletsPage() {
 
   const createPalletFromScan = () => {
     if (!scanResult) return;
-    const newPallet = storage.upsertPallet(
-      { code: scanResult },
-      undefined // companyId (non ancora implementato)
-    );
+    storage.upsertPallet({ code: scanResult, lastSeenTs: Date.now() });
     reload();
     setScanResult(null);
-    setFoundPallet(newPallet);
+    setFoundPallet(null);
     alert(`Pallet ${scanResult} creato.`);
   };
 
@@ -99,16 +155,13 @@ export default function PalletsPage() {
       alert("Inserisci il codice del pallet");
       return;
     }
-
     const palletData: Partial<storage.PalletItem> & { code: string } = {
       code: form.code.trim(),
       altCode: form.altCode.trim() || undefined,
       type: (form.type as storage.PalletType) || undefined,
       typeCustom: form.type === "ALTRO" ? form.typeCustom.trim() : undefined,
       notes: form.notes.trim() || undefined,
-      lastSeenTs: Date.now(),
     };
-
     storage.upsertPallet(palletData);
     reload();
     resetForm();
@@ -116,13 +169,7 @@ export default function PalletsPage() {
   };
 
   const resetForm = () => {
-    setForm({
-      code: "",
-      altCode: "",
-      type: "",
-      typeCustom: "",
-      notes: "",
-    });
+    setForm({ code: "", altCode: "", type: "", typeCustom: "", notes: "" });
     setScanResult(null);
     setFoundPallet(null);
   };
@@ -141,28 +188,37 @@ export default function PalletsPage() {
 
   const deletePallet = (id: string) => {
     if (!confirm("Eliminare questo pallet?")) return;
-    const items = storage.getPallets().filter((p) => p.id !== id);
-    storage.setPallets(items);
+    storage.deletePallet(id);
     reload();
     if (foundPallet?.id === id) resetForm();
   };
 
+  const viewHistory = (code: string) => {
+    const events = storage.getHistoryForPallet(code);
+    setHistoryEvents(events);
+    setShowHistory(code);
+  };
+
   async function exportPdf() {
-    const all = storage.getPallets();
     await storage.exportPdf({
       filename: "pallet.pdf",
       title: "Elenco Pallet",
-      headers: ["ID", "Codice", "Codice alternativo", "Tipo", "Note", "Ultimo visto"],
-      rows: all.map((p) => [
-        p.id,
+      headers: ["Codice", "Tipo", "Note", "Ultimo avvistamento", "Posizione"],
+      rows: filteredPallets.map((p) => [
         p.code,
-        p.altCode || "",
         p.type === "ALTRO" && p.typeCustom ? p.typeCustom : p.type || "",
         p.notes || "",
-        p.lastSeenTs ? new Date(p.lastSeenTs).toLocaleString() : "",
+        p.lastSeenTs ? new Date(p.lastSeenTs).toLocaleString() : "Mai",
+        p.lastLat && p.lastLng ? `${p.lastLat.toFixed(6)}, ${p.lastLng.toFixed(6)}` : "N/D",
       ]),
     });
   }
+
+  const isLost = (lastSeenTs?: number): boolean => {
+    if (!lastSeenTs) return true;
+    const daysDiff = (Date.now() - lastSeenTs) / (1000 * 60 * 60 * 24);
+    return daysDiff > 30;
+  };
 
   const cardStyle: React.CSSProperties = {
     background: "white",
@@ -172,8 +228,8 @@ export default function PalletsPage() {
     boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
   };
 
-  const btn = (bg: string, color = "white") => ({
-    padding: "12px 14px",
+  const btn = (bg: string, color = "white", small?: boolean) => ({
+    padding: small ? "6px 10px" : "12px 14px",
     borderRadius: 14,
     border: "none",
     fontWeight: 900 as const,
@@ -193,29 +249,42 @@ export default function PalletsPage() {
     marginBottom: 10,
   };
 
-  // Icone per le tipologie (emoji)
-  const getTypeIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      "CHEP": "🔵",
-      "LPR": "💗",
-      "EPAL": "🟫",
-      "DUSS CHEP": "🔵⚙️",
-      "DUSS LPR": "💗⚙️",
-      "MINI PALLET DUSS": "📦⚙️",
-      "GENERICHE": "📦",
-      "IFCO VERDI": "🟢",
-      "IFCO ROSSE": "🔴",
-      "IFCO MARRONI": "🟤",
-      "ROLL": "🛒",
-    };
-    return icons[type] || "📦";
-  };
-
   return (
     <div style={{ padding: 16, maxWidth: 860, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 6 }}>📦 Gestione Pallet</h1>
-      <div style={{ opacity: 0.85, fontWeight: 700 }}>
-        Gestisci i pallet e scansioni QR.
+      <div style={{ opacity: 0.85, fontWeight: 700, marginBottom: 16 }}>
+        {pallets.length} pedane totali • {filteredPallets.length} visualizzate
+      </div>
+
+      {/* Filtri e ricerca */}
+      <div style={{ ...cardStyle, marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <input
+            placeholder="🔍 Cerca per codice, altCode, note..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ ...inputStyle, flex: 2, marginBottom: 0 }}
+          />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
+          >
+            <option value="">Tutti i tipi</option>
+            <option value="CHEP">CHEP</option>
+            <option value="LPR">LPR</option>
+            <option value="EPAL">EPAL</option>
+            <option value="DUSS CHEP">DUSS CHEP</option>
+            <option value="DUSS LPR">DUSS LPR</option>
+            <option value="MINI PALLET DUSS">Mini pallet DUSS</option>
+            <option value="GENERICHE">Generiche</option>
+            <option value="IFCO VERDI">IFCO verdi</option>
+            <option value="IFCO ROSSE">IFCO rosse</option>
+            <option value="IFCO MARRONI">IFCO marroni</option>
+            <option value="ROLL">ROLL</option>
+            <option value="ALTRO">Altro</option>
+          </select>
+        </div>
       </div>
 
       {/* Scanner overlay */}
@@ -253,19 +322,7 @@ export default function PalletsPage() {
           {foundPallet ? (
             <div>
               <p>✅ Pallet esistente trovato</p>
-              <button
-                onClick={() => {
-                  setForm({
-                    code: foundPallet.code,
-                    altCode: foundPallet.altCode || "",
-                    type: foundPallet.type || "",
-                    typeCustom: foundPallet.typeCustom || "",
-                    notes: foundPallet.notes || "",
-                  });
-                  setScanResult(null);
-                }}
-                style={btn("#ffb300", "#111")}
-              >
+              <button onClick={() => editPallet(foundPallet)} style={btn("#ffb300", "#111")}>
                 Modifica
               </button>
             </div>
@@ -310,27 +367,27 @@ export default function PalletsPage() {
         >
           <option value="">Seleziona tipo</option>
           <optgroup label="CHEP">
-            <option value="CHEP">{getTypeIcon("CHEP")} CHEP</option>
+            <option value="CHEP">{typeIcons.CHEP} CHEP</option>
           </optgroup>
           <optgroup label="LPR">
-            <option value="LPR">{getTypeIcon("LPR")} LPR</option>
+            <option value="LPR">{typeIcons.LPR} LPR</option>
           </optgroup>
           <optgroup label="EPAL">
-            <option value="EPAL">{getTypeIcon("EPAL")} EPAL</option>
+            <option value="EPAL">{typeIcons.EPAL} EPAL</option>
           </optgroup>
           <optgroup label="DUSS">
-            <option value="DUSS CHEP">{getTypeIcon("DUSS CHEP")} DUSS CHEP</option>
-            <option value="DUSS LPR">{getTypeIcon("DUSS LPR")} DUSS LPR</option>
-            <option value="MINI PALLET DUSS">{getTypeIcon("MINI PALLET DUSS")} Mini pallet DUSS</option>
+            <option value="DUSS CHEP">{typeIcons["DUSS CHEP"]} DUSS CHEP</option>
+            <option value="DUSS LPR">{typeIcons["DUSS LPR"]} DUSS LPR</option>
+            <option value="MINI PALLET DUSS">{typeIcons["MINI PALLET DUSS"]} Mini pallet DUSS</option>
           </optgroup>
           <optgroup label="IFCO">
-            <option value="IFCO VERDI">{getTypeIcon("IFCO VERDI")} IFCO verdi</option>
-            <option value="IFCO ROSSE">{getTypeIcon("IFCO ROSSE")} IFCO rosse</option>
-            <option value="IFCO MARRONI">{getTypeIcon("IFCO MARRONI")} IFCO marroni</option>
+            <option value="IFCO VERDI">{typeIcons["IFCO VERDI"]} IFCO verdi</option>
+            <option value="IFCO ROSSE">{typeIcons["IFCO ROSSE"]} IFCO rosse</option>
+            <option value="IFCO MARRONI">{typeIcons["IFCO MARRONI"]} IFCO marroni</option>
           </optgroup>
           <optgroup label="Altri">
-            <option value="ROLL">{getTypeIcon("ROLL")} ROLL</option>
-            <option value="GENERICHE">{getTypeIcon("GENERICHE")} Generiche</option>
+            <option value="ROLL">{typeIcons.ROLL} ROLL</option>
+            <option value="GENERICHE">{typeIcons.GENERICHE} Generiche</option>
             <option value="ALTRO">📌 Altro (specificare)</option>
           </optgroup>
         </select>
@@ -370,16 +427,17 @@ export default function PalletsPage() {
       {/* Elenco pallet */}
       <div style={cardStyle}>
         <h2 style={{ marginTop: 0 }}>📋 Elenco Pallet</h2>
-        {pallets.length === 0 ? (
-          <div style={{ opacity: 0.8 }}>Nessun pallet inserito.</div>
+        {filteredPallets.length === 0 ? (
+          <div style={{ opacity: 0.8 }}>Nessun pallet trovato.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
-            {pallets.map((p) => (
+            {filteredPallets.map((p) => (
               <div key={p.id} style={{ border: "1px solid #eee", borderRadius: 14, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 900, fontSize: 18 }}>
-                      {getTypeIcon(p.type || "")} {p.code}
+                      {typeIcons[p.type as keyof typeof typeIcons] || "📦"} {p.code}
+                      {isLost(p.lastSeenTs) && <span style={{ marginLeft: 8, color: "#d32f2f" }}>⚠️ Perso</span>}
                     </div>
                     <div style={{ opacity: 0.75 }}>
                       Tipo: {p.type === "ALTRO" && p.typeCustom ? p.typeCustom : p.type || "Non specificato"}
@@ -388,16 +446,20 @@ export default function PalletsPage() {
                     {p.notes && <div style={{ opacity: 0.7 }}>📝 {p.notes}</div>}
                     {p.lastSeenTs && (
                       <div style={{ fontSize: 12, opacity: 0.6 }}>
-                        Ultimo visto: {new Date(p.lastSeenTs).toLocaleString()}
+                        📅 {new Date(p.lastSeenTs).toLocaleString()}
+                        {p.lastLat && p.lastLng && ` 📍 (${p.lastLat.toFixed(6)}, ${p.lastLng.toFixed(6)})`}
                       </div>
                     )}
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <button onClick={() => editPallet(p)} style={btn("#ffb300", "#111", true)}>
                       Modifica
                     </button>
                     <button onClick={() => deletePallet(p.id)} style={btn("#e53935", "white", true)}>
                       Elimina
+                    </button>
+                    <button onClick={() => viewHistory(p.code)} style={btn("#1e88e5", "white", true)}>
+                      Storico
                     </button>
                   </div>
                 </div>
@@ -407,22 +469,50 @@ export default function PalletsPage() {
         )}
       </div>
 
+      {/* Modal storico */}
+      {showHistory && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div style={{ background: "white", borderRadius: 16, padding: 20, maxWidth: 500, width: "100%", maxHeight: "80vh", overflowY: "auto" }}>
+            <h3>📜 Storico movimenti - {showHistory}</h3>
+            {historyEvents.length === 0 ? (
+              <p>Nessuna scansione precedente.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {historyEvents.map((e) => (
+                  <li key={e.id} style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}>
+                    <div>🕒 {new Date(e.ts).toLocaleString()}</div>
+                    {e.lat && e.lng && <div>📍 {e.lat.toFixed(6)}, {e.lng.toFixed(6)}</div>}
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>Fonte: {e.source}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button onClick={() => setShowHistory(null)} style={btn("#eeeeee", "#111")}>
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 16 }}>
-        <a href="/" style={{ fontWeight: 900, textDecoration: "none" }}>
+        <Link href="/" style={{ fontWeight: 900, textDecoration: "none" }}>
           ← Torna alla Home
-        </a>
+        </Link>
       </div>
     </div>
   );
 }
-
-// Versione compatta per i bottoni nell'elenco
-const btn = (bg: string, color: string, small?: boolean) => ({
-  padding: small ? "6px 10px" : "12px 14px",
-  borderRadius: 14,
-  border: "none",
-  fontWeight: 900 as const,
-  cursor: "pointer",
-  background: bg,
-  color,
-});
