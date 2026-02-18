@@ -81,14 +81,14 @@ export default function ScanPage() {
       console.warn("Posizione non disponibile", err);
     }
 
-    // Registra scansione con indirizzo
+    // Registra scansione con indirizzo (converte null in undefined)
     storage.addHistory({
       code,
       ts: Date.now(),
       lat,
       lng,
       accuracy,
-      address,
+      address: address ?? undefined,
       source: "qr",
     });
 
