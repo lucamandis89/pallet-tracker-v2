@@ -2,8 +2,12 @@
 
 import React, { useState } from "react";
 import * as storage from "../lib/storage";
-import QRCode from "qrcode.react";
+import QRCodeLib from "qrcode.react";
 import Link from "next/link";
+
+// In alcune versioni di qrcode.react, l'export potrebbe non essere default.
+// Questo wrapper garantisce la compatibilità.
+const QRCode = QRCodeLib.default || QRCodeLib;
 
 const palletTypes: storage.PalletType[] = [
   "CHEP",
@@ -31,7 +35,6 @@ export default function QrGeneratorPage() {
     const code = storage.generatePalletCode(finalType);
     setGeneratedCode(code);
 
-    // Crea il pallet (non ancora salvato, solo per anteprima)
     const newPallet: storage.PalletItem = {
       id: "temp",
       code,
@@ -54,9 +57,17 @@ export default function QrGeneratorPage() {
   };
 
   const typeIcons: Record<string, string> = {
-    CHEP: "🔵", LPR: "💗", EPAL: "🟫", "DUSS CHEP": "🔵⚙️", "DUSS LPR": "💗⚙️",
-    "MINI PALLET DUSS": "📦⚙️", GENERICHE: "📦", "IFCO VERDI": "🟢", "IFCO ROSSE": "🔴",
-    "IFCO MARRONI": "🟤", ROLL: "🛒",
+    CHEP: "🔵",
+    LPR: "💗",
+    EPAL: "🟫",
+    "DUSS CHEP": "🔵⚙️",
+    "DUSS LPR": "💗⚙️",
+    "MINI PALLET DUSS": "📦⚙️",
+    GENERICHE: "📦",
+    "IFCO VERDI": "🟢",
+    "IFCO ROSSE": "🔴",
+    "IFCO MARRONI": "🟤",
+    ROLL: "🛒",
   };
 
   const cardStyle: React.CSSProperties = {
