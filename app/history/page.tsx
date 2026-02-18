@@ -1,5 +1,6 @@
 "use client";
 
+import * as storage from "../lib/storage";
 import React, { useEffect, useMemo, useState } from "react";
 
 type HistoryItem = {
