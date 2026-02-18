@@ -15,7 +15,6 @@ export default function DashboardPage() {
   const [recentScans, setRecentScans] = useState<storage.ScanEvent[]>([]);
 
   useEffect(() => {
-    // Calcola statistiche
     const drivers = storage.getDrivers().length;
     const shops = storage.getShops().length;
     const depots = storage.getDepots().length;
@@ -24,7 +23,7 @@ export default function DashboardPage() {
     const scans = history.length;
 
     setStats({ drivers, shops, depots, pallets, scans });
-    setRecentScans(history.slice(0, 5)); // ultime 5 scansioni
+    setRecentScans(history.slice(0, 5));
   }, []);
 
   const cardStyle: React.CSSProperties = {
@@ -39,19 +38,33 @@ export default function DashboardPage() {
   const statNumberStyle = { fontSize: 32, fontWeight: 700, color: "#1e88e5" };
   const statLabelStyle = { fontSize: 14, opacity: 0.7, fontWeight: 500 };
 
+  const btnStyle = (bg: string) => ({
+    display: "inline-block",
+    padding: "12px 24px",
+    background: bg,
+    color: "white",
+    textDecoration: "none",
+    borderRadius: 30,
+    fontWeight: 600,
+    fontSize: 14,
+  });
+
   return (
     <div style={{ padding: 16, maxWidth: 1000, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 20 }}>📊 Dashboard</h1>
 
-      {/* Griglia statistiche */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))",
-          gap: 16,
-          marginBottom: 30,
-        }}
-      >
+      {/* Pulsante per nuova scansione */}
+      <div style={{ ...cardStyle, marginBottom: 20, textAlign: "center" }}>
+        <Link href="/pallets" style={btnStyle("#d32f2f")}>
+          📷 Scansiona Pedana
+        </Link>
+        <p style={{ fontSize: 14, opacity: 0.7, marginTop: 8 }}>
+          Vai alla pagina pallet per scansionare codici QR.
+        </p>
+      </div>
+
+      {/* Statistiche */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))", gap: 16, marginBottom: 30 }}>
         <div style={cardStyle}>
           <div style={statNumberStyle}>{stats.drivers}</div>
           <div style={statLabelStyle}>Autisti</div>
@@ -82,15 +95,11 @@ export default function DashboardPage() {
         ) : (
           <ul style={{ listStyle: "none", padding: 0 }}>
             {recentScans.map((scan) => (
-              <li
-                key={scan.id}
-                style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
-              >
+              <li key={scan.id} style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}>
                 <div style={{ fontWeight: 600 }}>📦 {scan.code}</div>
                 <div style={{ fontSize: 13, opacity: 0.7 }}>
                   {new Date(scan.ts).toLocaleString()}{" "}
-                  {scan.lat && scan.lng &&
-                    `📍 (${scan.lat.toFixed(4)}, ${scan.lng.toFixed(4)})`}
+                  {scan.lat && scan.lng && `📍 (${scan.lat.toFixed(4)}, ${scan.lng.toFixed(4)})`}
                 </div>
               </li>
             ))}
@@ -100,30 +109,11 @@ export default function DashboardPage() {
 
       {/* Link rapidi */}
       <div style={{ marginTop: 30, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link href="/drivers" style={buttonStyle("#1e88e5")}>
-          Gestione Autisti
-        </Link>
-        <Link href="/shops" style={buttonStyle("#43a047")}>
-          Gestione Negozi
-        </Link>
-        <Link href="/depots" style={buttonStyle("#fb8c00")}>
-          Gestione Depositi
-        </Link>
-        <Link href="/pallets" style={buttonStyle("#8e24aa")}>
-          Gestione Pallet
-        </Link>
+        <Link href="/drivers" style={btnStyle("#1e88e5")}>Gestione Autisti</Link>
+        <Link href="/shops" style={btnStyle("#43a047")}>Gestione Negozi</Link>
+        <Link href="/depots" style={btnStyle("#fb8c00")}>Gestione Depositi</Link>
+        <Link href="/pallets" style={btnStyle("#8e24aa")}>Gestione Pallet</Link>
       </div>
     </div>
   );
 }
-
-const buttonStyle = (bg: string) => ({
-  display: "inline-block",
-  padding: "12px 24px",
-  background: bg,
-  color: "white",
-  textDecoration: "none",
-  borderRadius: 30,
-  fontWeight: 600,
-  fontSize: 14,
-});
