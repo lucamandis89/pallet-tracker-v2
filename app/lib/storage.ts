@@ -18,7 +18,7 @@ export type ScanEvent = {
   declaredId?: string;
   palletType?: string;
   qty?: number;
-  userId?: string;     // per quando avremo utenti
+  userId?: string;
   companyId?: string;
 };
 
@@ -106,6 +106,23 @@ export type StockMove = {
   note?: string;
 };
 
+export type Movement = {
+  id: string;
+  ts: number;
+  palletCode: string;
+  fromKind: StockLocationKind;
+  fromId: string;
+  fromName: string;
+  toKind: StockLocationKind;
+  toId: string;
+  toName: string;
+  quantity: number;
+  note?: string;
+  userId?: string;
+  companyId?: string;
+  synced?: boolean;
+};
+
 /* =========================================================
    KEYS
    ========================================================= */
@@ -120,6 +137,7 @@ const KEY_SHOPS = "pallet_shops";
 
 const KEY_STOCK = "pallet_stock_rows";
 const KEY_STOCK_MOVES = "pallet_stock_moves";
+const KEY_MOVEMENTS = "pallet_movements";
 
 /* =========================================================
    SAFE PARSE
@@ -251,7 +269,7 @@ export function setHistory(items: ScanEvent[]) {
 export function addHistory(ev: Omit<ScanEvent, "id">) {
   const items = getHistory();
   items.unshift({ id: uid("scan"), ...ev });
-  setHistory(items.slice(0, 5000)); // mantieni ultime 5000 scansioni
+  setHistory(items.slice(0, 5000));
 }
 
 export function getHistoryForPallet(code: string): ScanEvent[] {
@@ -325,6 +343,45 @@ export function upsertPallet(
 export function deletePallet(id: string) {
   const items = getPallets().filter((p) => p.id !== id);
   setPallets(items);
+}
+
+// Genera un codice univoco per nuova pedana
+export function generatePalletCode(type: PalletType): string {
+  const prefix = type.substring(0, 3).toUpperCase();
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${prefix}-${timestamp}-${random}`;
+}
+
+/* =========================================================
+   MOVEMENTS
+   ========================================================= */
+
+export function getMovements(): Movement[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<Movement[]>(localStorage.getItem(KEY_MOVEMENTS), []);
+}
+
+export function setMovements(items: Movement[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY_MOVEMENTS, JSON.stringify(items.slice(0, 5000)));
+}
+
+export function addMovement(move: Omit<Movement, "id" | "ts">) {
+  const items = getMovements();
+  const newMove: Movement = {
+    id: uid("mov"),
+    ts: Date.now(),
+    ...move,
+  };
+  items.unshift(newMove);
+  setMovements(items);
+  return newMove;
+}
+
+export function getMovementsForPallet(code: string): Movement[] {
+  const c = code.trim().toLowerCase();
+  return getMovements().filter(m => m.palletCode.toLowerCase() === c);
 }
 
 /* =========================================================
@@ -470,30 +527,6 @@ export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id" | "com
 export function deleteShop(id: string) {
   const items = getShops().filter((x) => x.id !== id);
   setShops(items);
-}
-
-/* =========================================================
-   STOCK
-   ========================================================= */
-
-export function getStockRows(): StockRow[] {
-  if (typeof window === "undefined") return [];
-  return safeParse<StockRow[]>(localStorage.getItem(KEY_STOCK), []);
-}
-
-export function setStockRows(items: StockRow[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_STOCK, JSON.stringify(items));
-}
-
-export function getStockMoves(): StockMove[] {
-  if (typeof window === "undefined") return [];
-  return safeParse<StockMove[]>(localStorage.getItem(KEY_STOCK_MOVES), []);
-}
-
-export function setStockMoves(items: StockMove[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_STOCK_MOVES, JSON.stringify(items.slice(0, 5000)));
 }
 
 /* =========================================================
