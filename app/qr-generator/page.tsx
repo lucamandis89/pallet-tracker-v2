@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import * as storage from "../lib/storage";
-import QRCodeLib from "qrcode.react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 
-// In alcune versioni di qrcode.react, l'export potrebbe non essere default.
-// Questo wrapper garantisce la compatibilità.
-const QRCode = QRCodeLib.default || QRCodeLib;
+// Import dinamico di qrcode.react (solo lato client)
+const QRCode = dynamic(
+  () => import("qrcode.react").then((mod) => mod.QRCode || mod.default),
+  { ssr: false, loading: () => <div style={{ width: 200, height: 200, background: "#f0f0f0", borderRadius: 16 }} /> }
+);
 
 const palletTypes: storage.PalletType[] = [
   "CHEP",
