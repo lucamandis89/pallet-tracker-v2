@@ -18,6 +18,8 @@ export type ScanEvent = {
   declaredId?: string;
   palletType?: string;
   qty?: number;
+  userId?: string;     // per quando avremo utenti
+  companyId?: string;
 };
 
 export type PalletType = 
@@ -39,7 +41,7 @@ export type PalletItem = {
   code: string;
   altCode?: string;
   type?: PalletType;
-  typeCustom?: string;          // per "ALTRO"
+  typeCustom?: string;
   notes?: string;
   lastSeenTs?: number;
   lastLat?: number;
@@ -210,7 +212,30 @@ export async function exportPdf(opts: {
 }
 
 /* =========================================================
-   HISTORY
+   GEOLOCALIZZAZIONE
+   ========================================================= */
+
+export async function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
+  return new Promise((resolve, reject) => {
+    if (!("geolocation" in navigator)) {
+      reject(new Error("Geolocalizzazione non supportata"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        }),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
+
+/* =========================================================
+   HISTORY (SCANSIONI)
    ========================================================= */
 
 export function getHistory(): ScanEvent[] {
@@ -226,17 +251,12 @@ export function setHistory(items: ScanEvent[]) {
 export function addHistory(ev: Omit<ScanEvent, "id">) {
   const items = getHistory();
   items.unshift({ id: uid("scan"), ...ev });
-  setHistory(items.slice(0, 2000));
+  setHistory(items.slice(0, 5000)); // mantieni ultime 5000 scansioni
 }
 
-export function setLastScan(code: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_LASTSCAN, code);
-}
-
-export function getLastScan(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(KEY_LASTSCAN) || "";
+export function getHistoryForPallet(code: string): ScanEvent[] {
+  const c = code.trim().toLowerCase();
+  return getHistory().filter((h) => h.code.toLowerCase() === c);
 }
 
 /* =========================================================
@@ -302,8 +322,13 @@ export function upsertPallet(
   return idx >= 0 ? items[idx] : items[0];
 }
 
+export function deletePallet(id: string) {
+  const items = getPallets().filter((p) => p.id !== id);
+  setPallets(items);
+}
+
 /* =========================================================
-   LISTE (drivers/depots/shops) + CRUD
+   DRIVERS
    ========================================================= */
 
 export function getDrivers(): DriverItem[] {
@@ -350,6 +375,10 @@ export function deleteDriver(id: string) {
   setDrivers(items);
 }
 
+/* =========================================================
+   DEPOTS
+   ========================================================= */
+
 export function getDepots(): DepotItem[] {
   if (typeof window === "undefined") return [];
   return safeParse<DepotItem[]>(localStorage.getItem(KEY_DEPOTS), []);
@@ -393,6 +422,10 @@ export function deleteDepot(id: string) {
   const items = getDepots().filter((x) => x.id !== id);
   setDepots(items);
 }
+
+/* =========================================================
+   SHOPS
+   ========================================================= */
 
 export function getShops(): ShopItem[] {
   if (typeof window === "undefined") return [];
