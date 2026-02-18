@@ -49,14 +49,14 @@ export default function StockPage() {
 
   useEffect(() => {
     const opts = optionsFor(fromKind);
-    setFromId(opts[0]?.id || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (opts.length > 0) setFromId(opts[0].id);
+    else setFromId("");
   }, [fromKind]);
 
   useEffect(() => {
     const opts = optionsFor(toKind);
-    setToId(opts[0]?.id || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (opts.length > 0) setToId(opts[0].id);
+    else setToId("");
   }, [toKind]);
 
   function addMove() {
@@ -243,7 +243,7 @@ export default function StockPage() {
         </div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 10, gridTemplateColumns: "1fr 1fr" }}>
-          <select value={fromKind} onChange={(e) => setFromKind(e.target.value as any)} style={input}>
+          <select value={fromKind} onChange={(e) => setFromKind(e.target.value as storage.StockLocationKind)} style={input}>
             <option value="DEPOSITO">Deposito</option>
             <option value="NEGOZIO">Negozio</option>
             <option value="AUTISTA">Autista</option>
@@ -261,7 +261,7 @@ export default function StockPage() {
             )}
           </select>
 
-          <select value={toKind} onChange={(e) => setToKind(e.target.value as any)} style={input}>
+          <select value={toKind} onChange={(e) => setToKind(e.target.value as storage.StockLocationKind)} style={input}>
             <option value="DEPOSITO">Deposito</option>
             <option value="NEGOZIO">Negozio</option>
             <option value="AUTISTA">Autista</option>
@@ -364,4 +364,4 @@ export default function StockPage() {
       </div>
     </div>
   );
-}
+      }
