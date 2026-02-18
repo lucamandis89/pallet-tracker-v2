@@ -15,6 +15,8 @@ export default function PalletsPage() {
   const [foundPallet, setFoundPallet] = useState<storage.PalletItem | null>(null);
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [historyEvents, setHistoryEvents] = useState<storage.ScanEvent[]>([]);
+  const [showMovements, setShowMovements] = useState<string | null>(null);
+  const [movementList, setMovementList] = useState<storage.Movement[]>([]);
 
   const [form, setForm] = useState({
     code: "",
@@ -199,6 +201,12 @@ export default function PalletsPage() {
     setShowHistory(code);
   };
 
+  const viewMovements = (code: string) => {
+    const moves = storage.getMovementsForPallet(code);
+    setMovementList(moves);
+    setShowMovements(code);
+  };
+
   async function exportPdf() {
     await storage.exportPdf({
       filename: "pallet.pdf",
@@ -249,6 +257,30 @@ export default function PalletsPage() {
     marginBottom: 10,
   };
 
+  const modalStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(0,0,0,0.5)",
+    zIndex: 2000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  };
+
+  const modalContentStyle: React.CSSProperties = {
+    background: "white",
+    borderRadius: 16,
+    padding: 20,
+    maxWidth: 500,
+    width: "100%",
+    maxHeight: "80vh",
+    overflowY: "auto",
+  };
+
   return (
     <div style={{ padding: 16, maxWidth: 860, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 6 }}>📦 Gestione Pallet</h1>
@@ -289,23 +321,8 @@ export default function PalletsPage() {
 
       {/* Scanner overlay */}
       {showScanner && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.9)",
-            zIndex: 1000,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div style={{ background: "white", borderRadius: 16, padding: 20, maxWidth: 500, width: "100%" }}>
+        <div style={modalStyle}>
+          <div style={modalContentStyle}>
             <h2 style={{ marginTop: 0 }}>📷 Inquadra il QR code</h2>
             <div id={scannerContainerId} style={{ width: "100%", minHeight: 300 }} />
             <button onClick={stopScanner} style={btn("#e53935")}>
@@ -461,6 +478,9 @@ export default function PalletsPage() {
                     <button onClick={() => viewHistory(p.code)} style={btn("#1e88e5", "white", true)}>
                       Storico
                     </button>
+                    <button onClick={() => viewMovements(p.code)} style={btn("#9c27b0", "white", true)}>
+                      Movimenti
+                    </button>
                   </div>
                 </div>
               </div>
@@ -469,25 +489,11 @@ export default function PalletsPage() {
         )}
       </div>
 
-      {/* Modal storico */}
+      {/* Modal storico scansioni */}
       {showHistory && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 2000,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div style={{ background: "white", borderRadius: 16, padding: 20, maxWidth: 500, width: "100%", maxHeight: "80vh", overflowY: "auto" }}>
-            <h3>📜 Storico movimenti - {showHistory}</h3>
+        <div style={modalStyle}>
+          <div style={modalContentStyle}>
+            <h3>📜 Storico scansioni - {showHistory}</h3>
             {historyEvents.length === 0 ? (
               <p>Nessuna scansione precedente.</p>
             ) : (
@@ -502,6 +508,32 @@ export default function PalletsPage() {
               </ul>
             )}
             <button onClick={() => setShowHistory(null)} style={btn("#eeeeee", "#111")}>
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal movimenti */}
+      {showMovements && (
+        <div style={modalStyle}>
+          <div style={modalContentStyle}>
+            <h3>🚚 Movimenti - {showMovements}</h3>
+            {movementList.length === 0 ? (
+              <p>Nessun movimento registrato.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {movementList.map((m) => (
+                  <li key={m.id} style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}>
+                    <div>🕒 {new Date(m.ts).toLocaleString()}</div>
+                    <div>📦 Da: {m.fromName} ({m.fromKind})</div>
+                    <div>📦 A: {m.toName} ({m.toKind})</div>
+                    {m.note && <div>📝 {m.note}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button onClick={() => setShowMovements(null)} style={btn("#eeeeee", "#111")}>
               Chiudi
             </button>
           </div>
