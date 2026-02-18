@@ -161,6 +161,26 @@ export default function ShopsPage() {
     );
   }
 
+  async function exportPdf() {
+    const all = storage.getShops();
+    await storage.exportPdf({
+      filename: "negozi.pdf",
+      title: "Elenco Negozi",
+      headers: ["ID", "Nome", "Codice", "Telefono", "Indirizzo", "Lat", "Lng", "Note", "Creato il"],
+      rows: all.map((s) => [
+        s.id,
+        s.name,
+        s.code || "",
+        s.phone || "",
+        s.address || "",
+        s.lat ?? "",
+        s.lng ?? "",
+        s.notes || "",
+        s.createdAt ? new Date(s.createdAt).toLocaleString() : "",
+      ]),
+    });
+  }
+
   const cardStyle: React.CSSProperties = {
     background: "white",
     border: "1px solid #e9e9e9",
@@ -271,7 +291,11 @@ export default function ShopsPage() {
           </button>
 
           <button onClick={exportCsv} style={btn("#6a1b9a")}>
-            ⬇️ Export CSV
+            ⬇️ CSV
+          </button>
+
+          <button onClick={exportPdf} style={btn("#9c27b0")}>
+            📄 PDF
           </button>
         </div>
 
