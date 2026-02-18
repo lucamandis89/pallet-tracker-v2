@@ -92,14 +92,16 @@ export default function PalletsPage() {
     setShowScanner(false);
     setScanResult(code);
 
-    let lat, lng, accuracy;
+    let lat, lng, accuracy, address;
     try {
       const pos = await storage.getCurrentPosition();
       lat = pos.lat;
       lng = pos.lng;
       accuracy = pos.accuracy;
+      // Ottieni il nome del luogo dalle coordinate
+      address = await storage.reverseGeocodeWithRateLimit(lat, lng);
     } catch (err) {
-      console.warn("Posizione non disponibile");
+      console.warn("Posizione non disponibile", err);
     }
 
     storage.addHistory({
@@ -108,6 +110,7 @@ export default function PalletsPage() {
       lat,
       lng,
       accuracy,
+      address,
       source: "qr",
     });
 
@@ -118,6 +121,7 @@ export default function PalletsPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
+        lastAddress: address,
         lastSource: "qr",
       });
       setFoundPallet(pallet);
@@ -211,13 +215,14 @@ export default function PalletsPage() {
     await storage.exportPdf({
       filename: "pallet.pdf",
       title: "Elenco Pallet",
-      headers: ["Codice", "Tipo", "Note", "Ultimo avvistamento", "Posizione"],
+      headers: ["Codice", "Tipo", "Note", "Ultimo avvistamento", "Posizione", "Luogo"],
       rows: filteredPallets.map((p) => [
         p.code,
         p.type === "ALTRO" && p.typeCustom ? p.typeCustom : p.type || "",
         p.notes || "",
         p.lastSeenTs ? new Date(p.lastSeenTs).toLocaleString() : "Mai",
         p.lastLat && p.lastLng ? `${p.lastLat.toFixed(6)}, ${p.lastLng.toFixed(6)}` : "N/D",
+        p.lastAddress || "N/D",
       ]),
     });
   }
@@ -467,6 +472,12 @@ export default function PalletsPage() {
                         {p.lastLat && p.lastLng && ` 📍 (${p.lastLat.toFixed(6)}, ${p.lastLng.toFixed(6)})`}
                       </div>
                     )}
+                    {/* Aggiunto indirizzo */}
+                    {p.lastAddress && (
+                      <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+                        🏠 {p.lastAddress}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <button onClick={() => editPallet(p)} style={btn("#ffb300", "#111", true)}>
@@ -502,6 +513,7 @@ export default function PalletsPage() {
                   <li key={e.id} style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}>
                     <div>🕒 {new Date(e.ts).toLocaleString()}</div>
                     {e.lat && e.lng && <div>📍 {e.lat.toFixed(6)}, {e.lng.toFixed(6)}</div>}
+                    {e.address && <div>🏠 {e.address}</div>}
                     <div style={{ fontSize: 12, opacity: 0.7 }}>Fonte: {e.source}</div>
                   </li>
                 ))}
