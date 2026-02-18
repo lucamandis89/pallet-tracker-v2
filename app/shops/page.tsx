@@ -142,9 +142,10 @@ export default function ShopsPage() {
     }
   }
 
+  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportCsv() {
     const all = storage.getShops();
-    storage.downloadCsv(
+    storage.exportCsv(
       "negozi.csv",
       ["id", "name", "code", "phone", "address", "lat", "lng", "notes", "createdAt"],
       all.map((s) => [
