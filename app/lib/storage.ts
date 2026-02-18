@@ -34,7 +34,7 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
-/** ✅ Aggiunti campi opzionali per non far fallire TypeScript nelle pagine */
+/** ✅ Aggiunto campo notes */
 export type DriverItem = {
   id: string;
   name: string;
@@ -42,6 +42,7 @@ export type DriverItem = {
   address?: string;
   lat?: number;
   lng?: number;
+  notes?: string;
 };
 
 export type DepotItem = {
@@ -51,6 +52,7 @@ export type DepotItem = {
   address?: string;
   lat?: number;
   lng?: number;
+  notes?: string;
 };
 
 export type ShopItem = {
@@ -60,6 +62,7 @@ export type ShopItem = {
   address?: string;
   lat?: number;
   lng?: number;
+  notes?: string;
 };
 
 export type StockRow = {
@@ -300,6 +303,7 @@ export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
+    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
   };
   items.unshift(it);
   setDrivers(items);
@@ -339,6 +343,7 @@ export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
+    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
   };
   items.unshift(it);
   setDepots(items);
@@ -378,6 +383,7 @@ export function addShop(data: Omit<ShopItem, "id">): ShopItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
+    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
   };
   items.unshift(it);
   setShops(items);
