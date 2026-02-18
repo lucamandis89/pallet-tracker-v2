@@ -1,8 +1,8 @@
 {
   "name": "Pallet Tracking",
-  "short_name": "Pallet",
+  "short_name": "Pallet Tracking",
   "description": "App per gestione pallet con GPS, autisti, stock e tracciamento consegne.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
