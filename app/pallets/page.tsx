@@ -1,8 +1,7 @@
-// app/pallets/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { downloadCsv, getLastScan, getPallets, PalletItem, setPallets, upsertPallet } from "../lib/storage";
+import * as storage from "../lib/storage";
 
 const PALLET_TYPES = [
   "EUR / EPAL",
@@ -14,7 +13,7 @@ const PALLET_TYPES = [
 ];
 
 export default function PalletsPage() {
-  const [items, setItems] = useState<PalletItem[]>([]);
+  const [items, setItems] = useState<storage.PalletItem[]>([]);
   const [q, setQ] = useState("");
 
   const [code, setCode] = useState("");
@@ -25,13 +24,12 @@ export default function PalletsPage() {
   const [editId, setEditId] = useState<string | null>(null);
 
   function reload() {
-    setItems(getPallets());
+    setItems(storage.getPallets());
   }
 
   useEffect(() => {
     reload();
-    // precompila col last scan se presente
-    const last = getLastScan();
+    const last = storage.getLastScan();
     if (last) setCode((prev) => prev || last);
   }, []);
 
@@ -56,9 +54,8 @@ export default function PalletsPage() {
     const c = code.trim();
     if (!c) return alert("Inserisci un codice pedana (QR o manuale).");
 
-    // se stai editando, aggiorno l’elemento specifico
     if (editId) {
-      const all = getPallets();
+      const all = storage.getPallets();
       const idx = all.findIndex((x) => x.id === editId);
       if (idx < 0) {
         alert("Elemento non trovato, ricarico lista.");
@@ -72,14 +69,13 @@ export default function PalletsPage() {
         type: type || undefined,
         notes: notes.trim() || undefined,
       };
-      setPallets(all);
+      storage.setPallets(all);
       reload();
       resetForm();
       return;
     }
 
-    // nuovo / upsert su code o altCode
-    upsertPallet({
+    storage.upsertPallet({
       code: c,
       altCode: altCode.trim() || undefined,
       type: type || undefined,
@@ -89,7 +85,7 @@ export default function PalletsPage() {
     resetForm();
   }
 
-  function onEdit(p: PalletItem) {
+  function onEdit(p: storage.PalletItem) {
     setEditId(p.id);
     setCode(p.code || "");
     setAltCode(p.altCode || "");
@@ -100,14 +96,14 @@ export default function PalletsPage() {
 
   function onDelete(id: string) {
     if (!confirm("Eliminare questa pedana dal registro?")) return;
-    const all = getPallets().filter((x) => x.id !== id);
-    setPallets(all);
+    const all = storage.getPallets().filter((x) => x.id !== id);
+    storage.setPallets(all);
     reload();
   }
 
   function exportCsv() {
-    const all = getPallets();
-    downloadCsv(
+    const all = storage.getPallets();
+    storage.downloadCsv(
       "registro_pedane.csv",
       ["code", "altCode", "type", "notes", "lastSeen", "lat", "lng", "source"],
       all.map((p) => [
@@ -148,7 +144,6 @@ export default function PalletsPage() {
         Qui registri pedane anche quando il QR è rovinato (codice manuale / codice alternativo).
       </div>
 
-      {/* Form */}
       <div
         style={{
           marginTop: 14,
@@ -222,7 +217,6 @@ export default function PalletsPage() {
         </div>
       </div>
 
-      {/* Search */}
       <div style={{ marginTop: 14 }}>
         <input
           value={q}
@@ -232,7 +226,6 @@ export default function PalletsPage() {
         />
       </div>
 
-      {/* List */}
       <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
         {filtered.length === 0 ? (
           <div style={{ padding: 14, borderRadius: 18, border: "1px solid #eee", background: "white" }}>
