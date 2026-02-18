@@ -255,26 +255,27 @@ export default function StockPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-          <button onClick={addMove} style={btn("#1e88e5")}>
-            Registra movimento
-          </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={addMove} style={btn("#1976d2")}>
+                Registra movimento
+                  </button>
 
-          <button onClick={exportStockCsv} style={btn("#2e7d32")}>
-            ⬇️ Export Giacenze CSV
-          </button>
+                    <button onClick={exportStockCsv} style={btn("#2e7d32")}>
+                        Export Giacenze CSV
+                          </button>
 
-          <button onClick={exportMovesCsv} style={btn("#6a1b9a")}>
-            ⬇️ Export Movimenti CSV
-          </button>
-        </div>
+                            <button onClick={exportStockPdf} style={btn("#e53935")}>
+                                PDF Giacenze
+                                  </button>
 
-        {msg ? (
-          <div style={{ marginTop: 10, fontWeight: 900, color: msg.includes("✅") ? "#2e7d32" : "#c62828" }}>
-            {msg}
-          </div>
-        ) : null}
-      </div>
+                                    <button onClick={exportMovesCsv} style={btn("#2e7d32")}>
+                                        Export Movimenti CSV
+                                          </button>
+
+                                            <button onClick={exportMovesPdf} style={btn("#e53935")}>
+                                                PDF Movimenti
+                                                  </button>
+                                                  </div>
 
       <div style={{ ...card, marginTop: 14 }}>
         <h2 style={{ marginTop: 0 }}>📦 Giacenze attuali</h2>
