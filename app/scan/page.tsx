@@ -92,7 +92,7 @@ export default function ScanPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
-        lastAddress: address,
+        lastAddress: address ?? undefined,
         lastSource: "qr",
       });
     } else {
@@ -101,7 +101,7 @@ export default function ScanPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
-        lastAddress: address,
+        lastAddress: address ?? undefined,
         lastSource: "qr",
       });
     }

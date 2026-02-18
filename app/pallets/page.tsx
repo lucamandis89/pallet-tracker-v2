@@ -120,7 +120,7 @@ export default function PalletsPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
-        lastAddress: address,
+        lastAddress: address ?? undefined,
         lastSource: "qr",
       });
       setFoundPallet(pallet);
