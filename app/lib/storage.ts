@@ -32,6 +32,7 @@ export type PalletItem = {
   lastSource?: "qr" | "manual";
   lastLocKind?: StockLocationKind;
   lastLocId?: string;
+  companyId?: string; // 👈 NUOVO
 };
 
 export type DriverItem = {
@@ -43,6 +44,7 @@ export type DriverItem = {
   lng?: number;
   notes?: string;
   createdAt?: number;
+  companyId?: string; // 👈 NUOVO
 };
 
 export type DepotItem = {
@@ -54,18 +56,20 @@ export type DepotItem = {
   lng?: number;
   notes?: string;
   createdAt?: number;
+  companyId?: string; // 👈 NUOVO
 };
 
 export type ShopItem = {
   id: string;
   name: string;
-  code?: string;        // <-- AGGIUNTO
+  code?: string;
   phone?: string;
   address?: string;
   lat?: number;
   lng?: number;
   notes?: string;
   createdAt?: number;
+  companyId?: string; // 👈 NUOVO
 };
 
 export type StockRow = {
@@ -246,7 +250,8 @@ export function findPalletByCode(code: string): PalletItem | null {
 }
 
 export function upsertPallet(
-  update: Partial<PalletItem> & { code: string }
+  update: Partial<PalletItem> & { code: string },
+  companyId?: string // 👈 NUOVO parametro opzionale
 ): PalletItem | null {
   const items = getPallets();
   const codeNorm = (update.code || "").trim();
@@ -273,6 +278,7 @@ export function upsertPallet(
       lastSource: update.lastSource,
       lastLocKind: update.lastLocKind,
       lastLocId: update.lastLocId,
+      companyId, // 👈 salviamo se presente
     });
   }
 
@@ -294,7 +300,10 @@ export function setDrivers(items: DriverItem[]) {
   localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 200)));
 }
 
-export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
+export function addDriver(
+  data: Omit<DriverItem, "id" | "createdAt" | "companyId">,
+  companyId?: string // 👈 NUOVO parametro opzionale
+): DriverItem {
   const items = getDrivers();
   const it: DriverItem = {
     id: uid("drv"),
@@ -305,13 +314,14 @@ export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
+    companyId, // 👈 salviamo se presente
   };
   items.unshift(it);
   setDrivers(items);
   return it;
 }
 
-export function updateDriver(id: string, patch: Partial<Omit<DriverItem, "id">>) {
+export function updateDriver(id: string, patch: Partial<Omit<DriverItem, "id" | "companyId">>) {
   const items = getDrivers();
   const idx = items.findIndex((x) => x.id === id);
   if (idx < 0) return;
@@ -334,7 +344,10 @@ export function setDepots(items: DepotItem[]) {
   localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 200)));
 }
 
-export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
+export function addDepot(
+  data: Omit<DepotItem, "id" | "createdAt" | "companyId">,
+  companyId?: string // 👈 NUOVO parametro opzionale
+): DepotItem {
   const items = getDepots();
   const it: DepotItem = {
     id: uid("dep"),
@@ -345,13 +358,14 @@ export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
+    companyId, // 👈 salviamo se presente
   };
   items.unshift(it);
   setDepots(items);
   return it;
 }
 
-export function updateDepot(id: string, patch: Partial<Omit<DepotItem, "id">>) {
+export function updateDepot(id: string, patch: Partial<Omit<DepotItem, "id" | "companyId">>) {
   const items = getDepots();
   const idx = items.findIndex((x) => x.id === id);
   if (idx < 0) return;
@@ -374,25 +388,29 @@ export function setShops(items: ShopItem[]) {
   localStorage.setItem(KEY_SHOPS, JSON.stringify(items.slice(0, 500)));
 }
 
-export function addShop(data: Omit<ShopItem, "id">): ShopItem {
+export function addShop(
+  data: Omit<ShopItem, "id" | "createdAt" | "companyId">,
+  companyId?: string // 👈 NUOVO parametro opzionale
+): ShopItem {
   const items = getShops();
   const it: ShopItem = {
     id: uid("shop"),
     name: (data.name || "").trim(),
-    code: (data.code || "").trim() || undefined,   // <-- AGGIUNTO
+    code: (data.code || "").trim() || undefined,
     phone: (data.phone || "").trim() || undefined,
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
+    companyId, // 👈 salviamo se presente
   };
   items.unshift(it);
   setShops(items);
   return it;
 }
 
-export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id">>) {
+export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id" | "companyId">>) {
   const items = getShops();
   const idx = items.findIndex((x) => x.id === id);
   if (idx < 0) return;
