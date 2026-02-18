@@ -137,9 +137,10 @@ export default function DriversPage() {
     }
   }
 
+  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportCsv() {
     const all = storage.getDrivers();
-    storage.downloadCsv(
+    storage.exportCsv(
       "autisti.csv",
       ["id", "name", "phone", "address", "lat", "lng", "notes", "createdAt"],
       all.map((d) => [
