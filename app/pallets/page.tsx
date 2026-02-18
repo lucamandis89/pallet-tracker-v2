@@ -101,9 +101,10 @@ export default function PalletsPage() {
     reload();
   }
 
+  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportCsv() {
     const all = storage.getPallets();
-    storage.downloadCsv(
+    storage.exportCsv(
       "registro_pedane.csv",
       ["code", "altCode", "type", "notes", "lastSeen", "lat", "lng", "source"],
       all.map((p) => [
