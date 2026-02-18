@@ -34,7 +34,6 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
-/** Aggiunto createdAt */
 export type DriverItem = {
   id: string;
   name: string;
@@ -43,7 +42,7 @@ export type DriverItem = {
   lat?: number;
   lng?: number;
   notes?: string;
-  createdAt?: number; // opzionale per retrocompatibilità
+  createdAt?: number;
 };
 
 export type DepotItem = {
@@ -137,7 +136,6 @@ function escapeCsvCell(v: any): string {
   return s;
 }
 
-/** Export CSV generico */
 export function exportCsv(filename: string, headers: string[], rows: any[][]) {
   if (typeof window === "undefined") return;
 
@@ -149,7 +147,6 @@ export function exportCsv(filename: string, headers: string[], rows: any[][]) {
   downloadBlob(blob, filename);
 }
 
-/** Export PDF generico (jsPDF + autoTable) */
 export async function exportPdf(opts: {
   filename: string;
   title: string;
@@ -306,7 +303,7 @@ export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
-    createdAt: Date.now(), // ora presente
+    createdAt: Date.now(),
   };
   items.unshift(it);
   setDrivers(items);
