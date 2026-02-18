@@ -6,8 +6,9 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 
 // Import dinamico di qrcode.react (solo lato client)
+// Gestisce sia export default che export named
 const QRCode = dynamic(
-  () => import("qrcode.react").then((mod) => mod.default),
+  () => import("qrcode.react").then((mod) => mod.default || mod.QRCode),
   { ssr: false, loading: () => <div style={{ width: 200, height: 200, background: "#f0f0f0", borderRadius: 16 }} /> }
 );
 
