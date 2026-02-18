@@ -1,19 +1,37 @@
-/* app/lib/storage.ts
-   LocalStorage-backed “database” for the Pallet Tracker.
-   Exports are intentionally explicit so pages can import named helpers.
-*/
+"use client";
+
+/* ============================
+   TIPI
+============================ */
+
+export type StockLocationKind = "DEPOSITO" | "NEGOZIO" | "AUTISTA";
+
+export type ScanEvent = {
+  id: string;
+  code: string;
+  ts: number;
+  lat?: number;
+  lng?: number;
+  accuracy?: number;
+  source: "qr" | "manual";
+  declaredKind?: StockLocationKind;
+  declaredId?: string;
+  palletType?: string;
+  qty?: number;
+};
 
 export type PalletItem = {
   id: string;
-  type: string;        // e.g. "EUR / EPAL"
-  qty: number;
-  depot?: string;
-  createdAt: number;
-};
-
-export type DepotOption = {
-  id: string;
-  label: string;
+  code: string;
+  altCode?: string;
+  type?: string;
+  notes?: string;
+  lastSeenTs?: number;
+  lastLat?: number;
+  lastLng?: number;
+  lastSource?: "qr" | "manual";
+  lastLocKind?: StockLocationKind;
+  lastLocId?: string;
 };
 
 export type DriverItem = {
@@ -30,6 +48,8 @@ export type DriverItem = {
 export type ShopItem = {
   id: string;
   name: string;
+  code?: string;
+  phone?: string;
   address?: string;
   lat?: number;
   lng?: number;
@@ -37,254 +57,74 @@ export type ShopItem = {
   createdAt: number;
 };
 
-export type StockLocationKind = "DEPOT" | "SHOP";
-
-export type StockMove = {
+export type DepotItem = {
   id: string;
-  kind: "IN" | "OUT";
-  palletType: string;
-  qty: number;
-  locationKind: StockLocationKind;
-  locationId: string; // depotId or shopId
-  driverId?: string;
-  note?: string;
+  name: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  notes?: string;
   createdAt: number;
 };
 
 export type StockRow = {
-  palletType: string;
   locationKind: StockLocationKind;
   locationId: string;
-  balance: number;
+  palletType: string;
+  qty: number;
 };
 
-export type ScanHistoryItem = {
+export type StockMove = {
   id: string;
-  raw: string;
-  parsed?: any;
-  createdAt: number;
+  ts: number;
+  palletType: string;
+  qty: number;
+  from: { kind: StockLocationKind; id: string };
+  to: { kind: StockLocationKind; id: string };
+  note?: string;
 };
 
-const KEYS = {
-  PALLETS: "pt_pallets",
-  LAST_SCAN: "pt_lastScan",
-  HISTORY: "pt_history",
-  DEPOTS: "pt_depots",
-  DRIVERS: "pt_drivers",
-  SHOPS: "pt_shops",
-  STOCK_MOVES: "pt_stockMoves",
-};
+/* ============================
+   KEYS
+============================ */
 
-function safeParse<T>(v: string | null, fallback: T): T {
-  if (!v) return fallback;
+const KEY_HISTORY = "pt_history_v1";
+const KEY_PALLETS = "pt_pallets_v1";
+const KEY_LASTSCAN = "pt_lastscan_v1";
+const KEY_DRIVERS = "pt_drivers_v1";
+const KEY_SHOPS = "pt_shops_v1";
+const KEY_DEPOTS = "pt_depots_v1";
+const KEY_STOCK = "pt_stock_v1";
+const KEY_STOCK_MOVES = "pt_stock_moves_v1";
+
+/* ============================
+   UTILS
+============================ */
+
+function safeParse<T>(raw: string | null, fallback: T): T {
   try {
-    return JSON.parse(v) as T;
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
   } catch {
     return fallback;
   }
 }
 
-function readArr<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  return safeParse<T[]>(localStorage.getItem(key), []);
+function uid(prefix = "id"): string {
+  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
-function writeArr<T>(key: string, arr: T[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(arr));
+function csvEscape(v: any): string {
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
 }
 
-function readObj<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  return safeParse<T>(localStorage.getItem(key), fallback);
-}
+// ⬇️ RINOMINATA DA downloadCsv A exportCsv
+export function exportCsv(filename: string, headers: string[], rows: any[][]) {
+  const csv =
+    [headers.map(csvEscape).join(","), ...rows.map((r) => r.map(csvEscape).join(","))].join("\n") + "\n";
 
-function writeObj<T>(key: string, obj: T) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(obj));
-}
-
-export function uid(prefix = "id"): string {
-  return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
-}
-
-/* ---------------- Pallets (simple list) ---------------- */
-
-export function getPallets(): PalletItem[] {
-  return readArr<PalletItem>(KEYS.PALLETS).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function setPallets(items: PalletItem[]) {
-  writeArr<PalletItem>(KEYS.PALLETS, items);
-}
-
-export function upsertPallet(item: PalletItem) {
-  const all = getPallets();
-  const idx = all.findIndex((x) => x.id === item.id);
-  if (idx >= 0) all[idx] = item;
-  else all.unshift(item);
-  setPallets(all);
-}
-
-export function removePallet(id: string) {
-  setPallets(getPallets().filter((x) => x.id !== id));
-}
-
-/* ---------------- Depots ---------------- */
-
-export function getDepotOptions(): DepotOption[] {
-  const arr = readArr<DepotOption>(KEYS.DEPOTS);
-  // Default depots if empty:
-  if (!arr.length) {
-    const seed: DepotOption[] = [
-      { id: "DEPOT_MAIN", label: "Deposito principale" },
-      { id: "DEPOT_2", label: "Deposito 2" },
-    ];
-    writeArr(KEYS.DEPOTS, seed);
-    return seed;
-  }
-  return arr;
-}
-
-export function setDepotOptions(items: DepotOption[]) {
-  writeArr<DepotOption>(KEYS.DEPOTS, items);
-}
-
-export function getDefaultDepot(): string {
-  const opts = getDepotOptions();
-  return opts[0]?.id ?? "DEPOT_MAIN";
-}
-
-/* ---------------- Drivers ---------------- */
-
-export function getDrivers(): DriverItem[] {
-  return readArr<DriverItem>(KEYS.DRIVERS).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function addDriver(d: Omit<DriverItem, "id" | "createdAt">) {
-  const all = getDrivers();
-  const item: DriverItem = { id: uid("drv"), createdAt: Date.now(), ...d };
-  all.unshift(item);
-  writeArr(KEYS.DRIVERS, all);
-  return item;
-}
-
-export function updateDriver(id: string, patch: Partial<Omit<DriverItem, "id" | "createdAt">>) {
-  const all = getDrivers();
-  const idx = all.findIndex((x) => x.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch };
-  writeArr(KEYS.DRIVERS, all);
-  return all[idx];
-}
-
-export function removeDriver(id: string) {
-  writeArr(KEYS.DRIVERS, getDrivers().filter((x) => x.id !== id));
-}
-
-/* ---------------- Shops ---------------- */
-
-export function getShops(): ShopItem[] {
-  return readArr<ShopItem>(KEYS.SHOPS).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function addShop(s: Omit<ShopItem, "id" | "createdAt">) {
-  const all = getShops();
-  const item: ShopItem = { id: uid("shop"), createdAt: Date.now(), ...s };
-  all.unshift(item);
-  writeArr(KEYS.SHOPS, all);
-  return item;
-}
-
-export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id" | "createdAt">>) {
-  const all = getShops();
-  const idx = all.findIndex((x) => x.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch };
-  writeArr(KEYS.SHOPS, all);
-  return all[idx];
-}
-
-export function removeShop(id: string) {
-  writeArr(KEYS.SHOPS, getShops().filter((x) => x.id !== id));
-}
-
-/* ---------------- Scan (Last + History) ---------------- */
-
-export function getLastScan(): any {
-  return readObj<any>(KEYS.LAST_SCAN, null);
-}
-
-export function setLastScan(v: any) {
-  writeObj(KEYS.LAST_SCAN, v);
-}
-
-export function getHistory(): ScanHistoryItem[] {
-  return readArr<ScanHistoryItem>(KEYS.HISTORY).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function addHistory(raw: string, parsed?: any) {
-  const all = getHistory();
-  const item: ScanHistoryItem = { id: uid("hist"), raw, parsed, createdAt: Date.now() };
-  all.unshift(item);
-  writeArr(KEYS.HISTORY, all);
-  return item;
-}
-
-export function clearHistory() {
-  writeArr(KEYS.HISTORY, []);
-}
-
-/* ---------------- Stock Moves ---------------- */
-
-export function getStockMoves(): StockMove[] {
-  return readArr<StockMove>(KEYS.STOCK_MOVES).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function addStockMove(m: Omit<StockMove, "id" | "createdAt">) {
-  const all = getStockMoves();
-  const item: StockMove = { id: uid("mv"), createdAt: Date.now(), ...m };
-  all.unshift(item);
-  writeArr(KEYS.STOCK_MOVES, all);
-  return item;
-}
-
-export function removeStockMove(id: string) {
-  writeArr(KEYS.STOCK_MOVES, getStockMoves().filter((x) => x.id !== id));
-}
-
-/* Compute current balances grouped by (palletType, locationKind, locationId) */
-export function getStockRows(): StockRow[] {
-  const moves = getStockMoves();
-  const map = new Map<string, StockRow>();
-
-  for (const mv of moves) {
-    const key = `${mv.palletType}__${mv.locationKind}__${mv.locationId}`;
-    const prev = map.get(key) ?? {
-      palletType: mv.palletType,
-      locationKind: mv.locationKind,
-      locationId: mv.locationId,
-      balance: 0,
-    };
-    const delta = mv.kind === "IN" ? mv.qty : -mv.qty;
-    prev.balance += delta;
-    map.set(key, prev);
-  }
-
-  return Array.from(map.values()).sort((a, b) => b.balance - a.balance);
-}
-
-/* CSV export helpers */
-export function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
-  if (typeof window === "undefined") return;
-
-  const escape = (v: any) => {
-    const s = String(v ?? "");
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
-
-  const csv = rows.map((r) => r.map(escape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
@@ -294,5 +134,279 @@ export function downloadCsv(filename: string, rows: (string | number | null | un
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* ============================
+   HISTORY
+============================ */
+
+export function getHistory(): ScanEvent[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<ScanEvent[]>(localStorage.getItem(KEY_HISTORY), []);
+}
+
+export function setHistory(items: ScanEvent[]) {
+  localStorage.setItem(KEY_HISTORY, JSON.stringify(items));
+}
+
+export function addHistory(ev: Omit<ScanEvent, "id">) {
+  const items = getHistory();
+  items.unshift({ id: uid("scan"), ...ev });
+  setHistory(items.slice(0, 2000));
+}
+
+export function setLastScan(code: string) {
+  localStorage.setItem(KEY_LASTSCAN, code);
+}
+
+export function getLastScan(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(KEY_LASTSCAN) || "";
+}
+
+/* ============================
+   PALLETS
+============================ */
+
+export function getPallets(): PalletItem[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<PalletItem[]>(localStorage.getItem(KEY_PALLETS), []);
+}
+
+export function setPallets(items: PalletItem[]) {
+  localStorage.setItem(KEY_PALLETS, JSON.stringify(items));
+}
+
+export function findPalletByCode(code: string): PalletItem | null {
+  const c = (code || "").trim().toLowerCase();
+  if (!c) return null;
+  const items = getPallets();
+  return (
+    items.find((p) => p.code.toLowerCase() === c || (p.altCode || "").toLowerCase() === c) || null
+  );
+}
+
+export function upsertPallet(update: Partial<PalletItem> & { code: string }) {
+  const items = getPallets();
+  const codeNorm = (update.code || "").trim();
+  if (!codeNorm) return;
+
+  const idx = items.findIndex(
+    (p) =>
+      p.code.toLowerCase() === codeNorm.toLowerCase() ||
+      (p.altCode || "").toLowerCase() === codeNorm.toLowerCase()
+  );
+
+  if (idx >= 0) {
+    items[idx] = { ...items[idx], ...update, code: items[idx].code || codeNorm };
+  } else {
+    items.unshift({
+      id: uid("pallet"),
+      code: codeNorm,
+      altCode: update.altCode,
+      type: update.type,
+      notes: update.notes,
+      lastSeenTs: update.lastSeenTs,
+      lastLat: update.lastLat,
+      lastLng: update.lastLng,
+      lastSource: update.lastSource,
+      lastLocKind: update.lastLocKind,
+      lastLocId: update.lastLocId,
+    });
+  }
+
+  setPallets(items);
+}
+
+/* ============================
+   DRIVERS max 10
+============================ */
+
+export function getDrivers(): DriverItem[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<DriverItem[]>(localStorage.getItem(KEY_DRIVERS), []);
+}
+
+export function setDrivers(items: DriverItem[]) {
+  localStorage.setItem(KEY_DRIVERS, JSON.stringify(items));
+}
+
+export function addDriver(data: Omit<DriverItem, "id" | "createdAt">) {
+  const list = getDrivers();
+  if (list.length >= 10) throw new Error("LIMIT_10");
+
+  const item: DriverItem = { id: uid("drv"), createdAt: Date.now(), ...data };
+  list.unshift(item);
+  setDrivers(list);
+  return item;
+}
+
+export function updateDriver(id: string, patch: Partial<DriverItem>) {
+  const list = getDrivers();
+  const idx = list.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  list[idx] = { ...list[idx], ...patch };
+  setDrivers(list);
+}
+
+export function removeDriver(id: string) {
+  setDrivers(getDrivers().filter((x) => x.id !== id));
+}
+
+/* ============================
+   SHOPS max 100
+============================ */
+
+export function getShops(): ShopItem[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<ShopItem[]>(localStorage.getItem(KEY_SHOPS), []);
+}
+
+export function setShops(items: ShopItem[]) {
+  localStorage.setItem(KEY_SHOPS, JSON.stringify(items));
+}
+
+export function addShop(data: Omit<ShopItem, "id" | "createdAt">) {
+  const list = getShops();
+  if (list.length >= 100) throw new Error("LIMIT_100");
+
+  const item: ShopItem = { id: uid("shop"), createdAt: Date.now(), ...data };
+  list.unshift(item);
+  setShops(list);
+  return item;
+}
+
+export function updateShop(id: string, patch: Partial<ShopItem>) {
+  const list = getShops();
+  const idx = list.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  list[idx] = { ...list[idx], ...patch };
+  setShops(list);
+}
+
+export function removeShop(id: string) {
+  setShops(getShops().filter((x) => x.id !== id));
+}
+
+/* ============================
+   DEPOTS (default always)
+============================ */
+
+const DEFAULT_DEPOT_ID = "dep_default";
+
+export function getDepots(): DepotItem[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<DepotItem[]>(localStorage.getItem(KEY_DEPOTS), []);
+}
+
+export function setDepots(items: DepotItem[]) {
+  localStorage.setItem(KEY_DEPOTS, JSON.stringify(items));
+}
+
+export function getDefaultDepot(): DepotItem {
+  return { id: DEFAULT_DEPOT_ID, name: "Deposito Principale", createdAt: 0 };
+}
+
+export function getDepotOptions(): DepotItem[] {
+  return [getDefaultDepot(), ...getDepots()];
+}
+
+/* ============================
+   STOCK
+============================ */
+
+function stockKey(kind: StockLocationKind, id: string, palletType: string) {
+  return `${kind}::${id}::${palletType}`;
+}
+
+export function getStockRows(): StockRow[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<StockRow[]>(localStorage.getItem(KEY_STOCK), []);
+}
+
+export function setStockRows(rows: StockRow[]) {
+  localStorage.setItem(KEY_STOCK, JSON.stringify(rows));
+}
+
+export function getStockMoves(): StockMove[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<StockMove[]>(localStorage.getItem(KEY_STOCK_MOVES), []);
+}
+
+export function setStockMoves(moves: StockMove[]) {
+  localStorage.setItem(KEY_STOCK_MOVES, JSON.stringify(moves));
+}
+
+export function applyStockDelta(kind: StockLocationKind, id: string, palletType: string, delta: number) {
+  const rows = getStockRows();
+  const k = stockKey(kind, id, palletType);
+
+  const idx = rows.findIndex((r) => stockKey(r.locationKind, r.locationId, r.palletType) === k);
+  if (idx >= 0) rows[idx] = { ...rows[idx], qty: (rows[idx].qty ?? 0) + delta };
+  else rows.push({ locationKind: kind, locationId: id, palletType, qty: delta });
+
+  setStockRows(rows);
+}
+
+export function addStockMove(input: Omit<StockMove, "id" | "ts"> & { ts?: number }) {
+  const ts = input.ts ?? Date.now();
+  const m: StockMove = { id: uid("stk"), ts, ...input };
+
+  if (!m.palletType?.trim()) throw new Error("PALLET_TYPE_REQUIRED");
+  if (!Number.isFinite(m.qty) || m.qty <= 0) throw new Error("QTY_INVALID");
+  if (!m.from?.kind || !m.from.id) throw new Error("FROM_INVALID");
+  if (!m.to?.kind || !m.to.id) throw new Error("TO_INVALID");
+
+  applyStockDelta(m.from.kind, m.from.id, m.palletType, -m.qty);
+  applyStockDelta(m.to.kind, m.to.id, m.palletType, +m.qty);
+
+  const moves = getStockMoves();
+  moves.unshift(m);
+  setStockMoves(moves.slice(0, 5000));
+  return m;
+}
+
+/* ============================
+   HELPERS: Scan -> Stock
+============================ */
+
+// Se la pedana non ha lastLoc, considero che parta dal Deposito Principale
+export function getLastKnownLocForPallet(code: string): { kind: StockLocationKind; id: string } {
+  const p = findPalletByCode(code);
+  if (p?.lastLocKind && p?.lastLocId) return { kind: p.lastLocKind, id: p.lastLocId };
+  return { kind: "DEPOSITO", id: DEFAULT_DEPOT_ID };
+}
+
+// Aggiorna posizione pedana + crea movimento stock
+export function movePalletViaScan(params: {
+  code: string;
+  palletType: string;
+  qty: number;
+  toKind: StockLocationKind;
+  toId: string;
+  note?: string;
+}) {
+  const from = getLastKnownLocForPallet(params.code);
+  const to = { kind: params.toKind, id: params.toId };
+
+  // movimento stock
+  addStockMove({
+    palletType: params.palletType,
+    qty: params.qty,
+    from,
+    to,
+    note: params.note,
+  });
+
+  // aggiorna pallet lastLoc
+  upsertPallet({
+    code: params.code,
+    type: params.palletType,
+    lastLocKind: params.toKind,
+    lastLocId: params.toId,
+  });
+
+  return { from, to };
 }
