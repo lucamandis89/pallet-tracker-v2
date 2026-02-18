@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { addShop, downloadCsv, getShops, removeShop, updateShop, ShopItem } from "../lib/storage";
+import * as storage from "../lib/storage";
 
 async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
   return new Promise((resolve, reject) => {
@@ -21,7 +21,7 @@ async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: n
 }
 
 export default function ShopsPage() {
-  const [items, setItems] = useState<ShopItem[]>([]);
+  const [items, setItems] = useState<storage.ShopItem[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const emptyForm = useMemo(
@@ -41,7 +41,7 @@ export default function ShopsPage() {
   const [msg, setMsg] = useState<string>("");
 
   function reload() {
-    setItems(getShops());
+    setItems(storage.getShops());
   }
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function ShopsPage() {
     setMsg("");
   }
 
-  function startEdit(it: ShopItem) {
+  function startEdit(it: storage.ShopItem) {
     setEditingId(it.id);
     setForm({
       name: it.name || "",
@@ -70,7 +70,7 @@ export default function ShopsPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo negozio?")) return;
-    removeShop(id);
+    storage.removeShop(id);
     reload();
     if (editingId === id) resetForm();
   }
@@ -105,7 +105,7 @@ export default function ShopsPage() {
     }
 
     if (editingId) {
-      updateShop(editingId, {
+      storage.updateShop(editingId, {
         name,
         code: code || undefined,
         phone: phone || undefined,
@@ -121,7 +121,7 @@ export default function ShopsPage() {
     }
 
     try {
-      addShop({
+      storage.addShop({
         name,
         code: code || undefined,
         phone: phone || undefined,
@@ -143,8 +143,8 @@ export default function ShopsPage() {
   }
 
   function exportCsv() {
-    const all = getShops();
-    downloadCsv(
+    const all = storage.getShops();
+    storage.downloadCsv(
       "negozi.csv",
       ["id", "name", "code", "phone", "address", "lat", "lng", "notes", "createdAt"],
       all.map((s) => [
