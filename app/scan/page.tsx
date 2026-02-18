@@ -67,28 +67,32 @@ export default function ScanPage() {
     }
     setScannerReady(false);
 
-    // Ottieni posizione
-    let lat, lng, accuracy;
+    // Ottieni posizione e indirizzo
+    let lat, lng, accuracy, address;
     try {
       const pos = await storage.getCurrentPosition();
       lat = pos.lat;
       lng = pos.lng;
       accuracy = pos.accuracy;
+
+      // Reverse geocoding con rate limit
+      address = await storage.reverseGeocodeWithRateLimit(lat, lng);
     } catch (err) {
-      console.warn("GPS non disponibile");
+      console.warn("Posizione non disponibile", err);
     }
 
-    // Registra scansione
+    // Registra scansione con indirizzo
     storage.addHistory({
       code,
       ts: Date.now(),
       lat,
       lng,
       accuracy,
+      address,
       source: "qr",
     });
 
-    // Aggiorna o crea pallet
+    // Aggiorna o crea pallet con ultimo indirizzo
     const existing = storage.findPalletByCode(code);
     if (existing) {
       storage.upsertPallet({
@@ -96,6 +100,7 @@ export default function ScanPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
+        lastAddress: address,
         lastSource: "qr",
       });
     } else {
@@ -104,6 +109,7 @@ export default function ScanPage() {
         lastSeenTs: Date.now(),
         lastLat: lat,
         lastLng: lng,
+        lastAddress: address,
         lastSource: "qr",
       });
     }
