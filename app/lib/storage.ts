@@ -20,11 +20,26 @@ export type ScanEvent = {
   qty?: number;
 };
 
+export type PalletType = 
+  | "CHEP"
+  | "LPR"
+  | "EPAL"
+  | "DUSS CHEP"
+  | "DUSS LPR"
+  | "MINI PALLET DUSS"
+  | "GENERICHE"
+  | "IFCO VERDI"
+  | "IFCO ROSSE"
+  | "IFCO MARRONI"
+  | "ROLL"
+  | "ALTRO";
+
 export type PalletItem = {
   id: string;
   code: string;
   altCode?: string;
-  type?: string;
+  type?: PalletType;
+  typeCustom?: string;          // per "ALTRO"
   notes?: string;
   lastSeenTs?: number;
   lastLat?: number;
@@ -32,7 +47,7 @@ export type PalletItem = {
   lastSource?: "qr" | "manual";
   lastLocKind?: StockLocationKind;
   lastLocId?: string;
-  companyId?: string; // 👈 NUOVO
+  companyId?: string;
 };
 
 export type DriverItem = {
@@ -44,7 +59,7 @@ export type DriverItem = {
   lng?: number;
   notes?: string;
   createdAt?: number;
-  companyId?: string; // 👈 NUOVO
+  companyId?: string;
 };
 
 export type DepotItem = {
@@ -56,7 +71,7 @@ export type DepotItem = {
   lng?: number;
   notes?: string;
   createdAt?: number;
-  companyId?: string; // 👈 NUOVO
+  companyId?: string;
 };
 
 export type ShopItem = {
@@ -69,7 +84,7 @@ export type ShopItem = {
   lng?: number;
   notes?: string;
   createdAt?: number;
-  companyId?: string; // 👈 NUOVO
+  companyId?: string;
 };
 
 export type StockRow = {
@@ -251,7 +266,7 @@ export function findPalletByCode(code: string): PalletItem | null {
 
 export function upsertPallet(
   update: Partial<PalletItem> & { code: string },
-  companyId?: string // 👈 NUOVO parametro opzionale
+  companyId?: string
 ): PalletItem | null {
   const items = getPallets();
   const codeNorm = (update.code || "").trim();
@@ -271,6 +286,7 @@ export function upsertPallet(
       code: codeNorm,
       altCode: update.altCode,
       type: update.type,
+      typeCustom: update.typeCustom,
       notes: update.notes,
       lastSeenTs: update.lastSeenTs,
       lastLat: update.lastLat,
@@ -278,7 +294,7 @@ export function upsertPallet(
       lastSource: update.lastSource,
       lastLocKind: update.lastLocKind,
       lastLocId: update.lastLocId,
-      companyId, // 👈 salviamo se presente
+      companyId,
     });
   }
 
@@ -302,7 +318,7 @@ export function setDrivers(items: DriverItem[]) {
 
 export function addDriver(
   data: Omit<DriverItem, "id" | "createdAt" | "companyId">,
-  companyId?: string // 👈 NUOVO parametro opzionale
+  companyId?: string
 ): DriverItem {
   const items = getDrivers();
   const it: DriverItem = {
@@ -314,7 +330,7 @@ export function addDriver(
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
-    companyId, // 👈 salviamo se presente
+    companyId,
   };
   items.unshift(it);
   setDrivers(items);
@@ -346,7 +362,7 @@ export function setDepots(items: DepotItem[]) {
 
 export function addDepot(
   data: Omit<DepotItem, "id" | "createdAt" | "companyId">,
-  companyId?: string // 👈 NUOVO parametro opzionale
+  companyId?: string
 ): DepotItem {
   const items = getDepots();
   const it: DepotItem = {
@@ -358,7 +374,7 @@ export function addDepot(
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
-    companyId, // 👈 salviamo se presente
+    companyId,
   };
   items.unshift(it);
   setDepots(items);
@@ -390,7 +406,7 @@ export function setShops(items: ShopItem[]) {
 
 export function addShop(
   data: Omit<ShopItem, "id" | "createdAt" | "companyId">,
-  companyId?: string // 👈 NUOVO parametro opzionale
+  companyId?: string
 ): ShopItem {
   const items = getShops();
   const it: ShopItem = {
@@ -403,7 +419,7 @@ export function addShop(
     lng: typeof data.lng === "number" ? data.lng : undefined,
     notes: (data.notes || "").trim() || undefined,
     createdAt: Date.now(),
-    companyId, // 👈 salviamo se presente
+    companyId,
   };
   items.unshift(it);
   setShops(items);
