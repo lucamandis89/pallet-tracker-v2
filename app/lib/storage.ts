@@ -34,15 +34,33 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
+/** ✅ Aggiunti campi opzionali per non far fallire TypeScript nelle pagine */
 export type DriverItem = {
   id: string;
   name: string;
   phone?: string;
   address?: string;
+  lat?: number;
+  lng?: number;
 };
 
-export type DepotItem = { id: string; name: string };
-export type ShopItem = { id: string; name: string };
+export type DepotItem = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+};
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+};
 
 export type StockRow = {
   kind: StockLocationKind;
@@ -259,7 +277,7 @@ export function upsertPallet(
 }
 
 /* =========================================================
-   DRIVERS
+   LISTE (drivers/depots/shops) + CRUD
    ========================================================= */
 
 export function getDrivers(): DriverItem[] {
@@ -269,61 +287,37 @@ export function getDrivers(): DriverItem[] {
 
 export function setDrivers(items: DriverItem[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 50)));
+  localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 200)));
 }
 
-export function addDriver(data: {
-  name: string;
-  phone?: string;
-  address?: string;
-}): DriverItem {
+/** ✅ richiesto da /app/drivers/page.tsx */
+export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
   const items = getDrivers();
-
-  const item: DriverItem = {
-    id: uid("driver"),
-    name: data.name.trim(),
-    phone: data.phone?.trim() || "",
-    address: data.address?.trim() || "",
+  const it: DriverItem = {
+    id: uid("drv"),
+    name: (data.name || "").trim(),
+    phone: (data.phone || "").trim() || undefined,
+    address: (data.address || "").trim() || undefined,
+    lat: typeof data.lat === "number" ? data.lat : undefined,
+    lng: typeof data.lng === "number" ? data.lng : undefined,
   };
-
-  items.unshift(item);
+  items.unshift(it);
   setDrivers(items);
-  return item;
+  return it;
 }
 
-export function updateDriver(
-  id: string,
-  patch: Partial<DriverItem>
-): DriverItem | null {
+export function updateDriver(id: string, patch: Partial<Omit<DriverItem, "id">>) {
   const items = getDrivers();
-  const idx = items.findIndex((d) => d.id === id);
-  if (idx === -1) return null;
-
-  items[idx] = {
-    ...items[idx],
-    ...patch,
-    name: patch.name !== undefined ? patch.name.trim() : items[idx].name,
-    phone: patch.phone !== undefined ? patch.phone.trim() : items[idx].phone,
-    address:
-      patch.address !== undefined ? patch.address.trim() : items[idx].address,
-  };
-
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  items[idx] = { ...items[idx], ...patch };
   setDrivers(items);
-  return items[idx];
 }
 
-export function deleteDriver(id: string): boolean {
-  const items = getDrivers();
-  const next = items.filter((d) => d.id !== id);
-  if (next.length === items.length) return false;
-
-  setDrivers(next);
-  return true;
+export function deleteDriver(id: string) {
+  const items = getDrivers().filter((x) => x.id !== id);
+  setDrivers(items);
 }
-
-/* =========================================================
-   DEPOTS
-   ========================================================= */
 
 export function getDepots(): DepotItem[] {
   if (typeof window === "undefined") return [];
@@ -332,12 +326,37 @@ export function getDepots(): DepotItem[] {
 
 export function setDepots(items: DepotItem[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 50)));
+  localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 200)));
 }
 
-/* =========================================================
-   SHOPS
-   ========================================================= */
+/** (utile se nella pagina depositi hai addDepot) */
+export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
+  const items = getDepots();
+  const it: DepotItem = {
+    id: uid("dep"),
+    name: (data.name || "").trim(),
+    phone: (data.phone || "").trim() || undefined,
+    address: (data.address || "").trim() || undefined,
+    lat: typeof data.lat === "number" ? data.lat : undefined,
+    lng: typeof data.lng === "number" ? data.lng : undefined,
+  };
+  items.unshift(it);
+  setDepots(items);
+  return it;
+}
+
+export function updateDepot(id: string, patch: Partial<Omit<DepotItem, "id">>) {
+  const items = getDepots();
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  items[idx] = { ...items[idx], ...patch };
+  setDepots(items);
+}
+
+export function deleteDepot(id: string) {
+  const items = getDepots().filter((x) => x.id !== id);
+  setDepots(items);
+}
 
 export function getShops(): ShopItem[] {
   if (typeof window === "undefined") return [];
@@ -346,7 +365,36 @@ export function getShops(): ShopItem[] {
 
 export function setShops(items: ShopItem[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY_SHOPS, JSON.stringify(items.slice(0, 200)));
+  localStorage.setItem(KEY_SHOPS, JSON.stringify(items.slice(0, 500)));
+}
+
+/** ✅ richiesto da /app/shops/page.tsx */
+export function addShop(data: Omit<ShopItem, "id">): ShopItem {
+  const items = getShops();
+  const it: ShopItem = {
+    id: uid("shop"),
+    name: (data.name || "").trim(),
+    phone: (data.phone || "").trim() || undefined,
+    address: (data.address || "").trim() || undefined,
+    lat: typeof data.lat === "number" ? data.lat : undefined,
+    lng: typeof data.lng === "number" ? data.lng : undefined,
+  };
+  items.unshift(it);
+  setShops(items);
+  return it;
+}
+
+export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id">>) {
+  const items = getShops();
+  const idx = items.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  items[idx] = { ...items[idx], ...patch };
+  setShops(items);
+}
+
+export function deleteShop(id: string) {
+  const items = getShops().filter((x) => x.id !== id);
+  setShops(items);
 }
 
 /* =========================================================
