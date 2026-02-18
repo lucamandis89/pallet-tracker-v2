@@ -1,25 +1,22 @@
 {
-  "name": "Pallet Tracker",
+  "name": "Pallet Tracking",
   "short_name": "Pallet",
   "description": "App per gestione pallet con GPS, autisti, stock e tracciamento consegne.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
-  "orientation": "portrait",
+  "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
