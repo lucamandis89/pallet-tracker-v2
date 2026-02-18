@@ -1,17 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  addStockMove,
-  downloadCsv,
-  getDefaultDepot,
-  getDepotOptions,
-  getDrivers,
-  getShops,
-  getStockMoves,
-  getStockRows,
-  StockLocationKind,
-} from "../lib/storage";
+import * as storage from "../lib/storage";
 
 const PALLET_TYPES = [
   "EUR / EPAL",
@@ -24,71 +14,65 @@ const PALLET_TYPES = [
 ];
 
 export default function StockPage() {
-  const [rows, setRows] = useState(getStockRows());
-  const [moves, setMoves] = useState(getStockMoves());
+  const [rows, setRows] = useState(storage.getStockRows());
+  const [moves, setMoves] = useState(storage.getStockMoves());
 
   // form movimento
   const [palletType, setPalletType] = useState(PALLET_TYPES[0]);
   const [qty, setQty] = useState<number>(1);
 
-  const [fromKind, setFromKind] = useState<StockLocationKind>("DEPOSITO");
-  const [fromId, setFromId] = useState<string>(getDefaultDepot().id);
+  const [fromKind, setFromKind] = useState<storage.StockLocationKind>("DEPOSITO");
+  const [fromId, setFromId] = useState<string>(storage.getDefaultDepot().id);
 
-  const [toKind, setToKind] = useState<StockLocationKind>("NEGOZIO");
+  const [toKind, setToKind] = useState<storage.StockLocationKind>("NEGOZIO");
   const [toId, setToId] = useState<string>("");
 
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState("");
 
-  const depots = useMemo(() => getDepotOptions(), []);
-  const drivers = useMemo(() => getDrivers(), []);
-  const shops = useMemo(() => getShops(), []);
+  const depots = useMemo(() => storage.getDepotOptions(), []);
+  const drivers = useMemo(() => storage.getDrivers(), []);
+  const shops = useMemo(() => storage.getShops(), []);
 
   function reload() {
-    setRows(getStockRows());
-    setMoves(getStockMoves());
+    setRows(storage.getStockRows());
+    setMoves(storage.getStockMoves());
   }
 
   useEffect(() => {
-    // default ToId se esiste qualcosa
     if (!toId) {
       if (toKind === "NEGOZIO" && shops[0]?.id) setToId(shops[0].id);
       if (toKind === "AUTISTA" && drivers[0]?.id) setToId(drivers[0].id);
       if (toKind === "DEPOSITO" && depots[0]?.id) setToId(depots[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // aggiorna id quando cambi kind
-    if (fromKind === "DEPOSITO") setFromId(getDefaultDepot().id);
+    if (fromKind === "DEPOSITO") setFromId(storage.getDefaultDepot().id);
     if (fromKind === "NEGOZIO") setFromId(shops[0]?.id || "");
     if (fromKind === "AUTISTA") setFromId(drivers[0]?.id || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromKind]);
 
   useEffect(() => {
-    if (toKind === "DEPOSITO") setToId(getDefaultDepot().id);
+    if (toKind === "DEPOSITO") setToId(storage.getDefaultDepot().id);
     if (toKind === "NEGOZIO") setToId(shops[0]?.id || "");
     if (toKind === "AUTISTA") setToId(drivers[0]?.id || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toKind]);
 
-  function nameOf(kind: StockLocationKind, id: string) {
+  function nameOf(kind: storage.StockLocationKind, id: string) {
     if (kind === "DEPOSITO") return depots.find((d) => d.id === id)?.name || "Deposito";
     if (kind === "AUTISTA") return drivers.find((d) => d.id === id)?.name || "Autista";
     return shops.find((s) => s.id === id)?.name || "Negozio";
   }
 
-  function optionsFor(kind: StockLocationKind) {
+  function optionsFor(kind: storage.StockLocationKind) {
     if (kind === "DEPOSITO") return depots.map((d) => ({ id: d.id, label: d.name }));
     if (kind === "AUTISTA") return drivers.map((d) => ({ id: d.id, label: d.name }));
     return shops.map((s) => ({ id: s.id, label: s.name }));
   }
 
   const grouped = useMemo(() => {
-    // raggruppa: kind+id -> palletType -> qty
-    const map = new Map<string, { kind: StockLocationKind; id: string; byType: Record<string, number> }>();
+    const map = new Map<string, { kind: storage.StockLocationKind; id: string; byType: Record<string, number> }>();
 
     for (const r of rows) {
       const key = `${r.locationKind}::${r.locationId}`;
@@ -110,7 +94,7 @@ export default function StockPage() {
     if (!toId) return alert("Seleziona il TO.");
 
     try {
-      addStockMove({
+      storage.addStockMove({
         palletType,
         qty: qn,
         from: { kind: fromKind, id: fromId },
@@ -135,11 +119,11 @@ export default function StockPage() {
         flat.push([g.kind, g.id, nameOf(g.kind, g.id), t, q]);
       }
     }
-    downloadCsv("stock_giacenze.csv", ["locationKind", "locationId", "locationName", "palletType", "qty"], flat);
+    storage.downloadCsv("stock_giacenze.csv", ["locationKind", "locationId", "locationName", "palletType", "qty"], flat);
   }
 
   function exportMovesCsv() {
-    downloadCsv(
+    storage.downloadCsv(
       "stock_movimenti.csv",
       ["ts", "palletType", "qty", "fromKind", "fromId", "fromName", "toKind", "toId", "toName", "note"],
       moves.map((m) => [
@@ -190,7 +174,6 @@ export default function StockPage() {
         Registra movimenti “Da → A” e controlla le giacenze per deposito/negozio/autista.
       </div>
 
-      {/* MOVIMENTO */}
       <div style={{ ...card, marginTop: 14 }}>
         <h2 style={{ marginTop: 0 }}>🔁 Registra movimento Stock</h2>
 
@@ -224,7 +207,7 @@ export default function StockPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" , marginTop: 10}}>
+        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr", marginTop: 10 }}>
           <div>
             <div style={{ fontWeight: 900, marginBottom: 6 }}>DA (FROM)</div>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
@@ -293,7 +276,6 @@ export default function StockPage() {
         ) : null}
       </div>
 
-      {/* GIACENZE */}
       <div style={{ ...card, marginTop: 14 }}>
         <h2 style={{ marginTop: 0 }}>📦 Giacenze attuali</h2>
 
@@ -326,7 +308,6 @@ export default function StockPage() {
         )}
       </div>
 
-      {/* MOVIMENTI */}
       <div style={{ ...card, marginTop: 14 }}>
         <h2 style={{ marginTop: 0 }}>🧾 Storico movimenti Stock</h2>
 
