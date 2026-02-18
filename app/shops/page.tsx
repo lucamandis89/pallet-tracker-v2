@@ -70,7 +70,7 @@ export default function ShopsPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo negozio?")) return;
-    storage.deleteShop(id); // <-- MODIFICATO: era removeShop
+    storage.deleteShop(id);
     reload();
     if (editingId === id) resetForm();
   }
@@ -156,7 +156,7 @@ export default function ShopsPage() {
         s.lat ?? "",
         s.lng ?? "",
         s.notes || "",
-        new Date(s.createdAt).toISOString(),
+        s.createdAt ? new Date(s.createdAt).toISOString() : "",
       ])
     );
   }
@@ -321,7 +321,7 @@ export default function ShopsPage() {
                 </div>
 
                 <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-                  Creato: {new Date(s.createdAt).toLocaleString()}
+                  Creato: {s.createdAt ? new Date(s.createdAt).toLocaleString() : "N/A"}
                 </div>
               </div>
             ))}
