@@ -43,6 +43,10 @@ export default function HomePage() {
         📷 SCANSIONA PEDANA
       </Link>
 
+      <Link href="/qr-generator" style={secondaryButtonStyle("#ff8f00")}>
+        🖨️ CREA QR PEDANA
+      </Link>
+
       <Link href="/dashboard" style={secondaryButtonStyle("#1e88e5")}>
         📊 DASHBOARD
       </Link>
