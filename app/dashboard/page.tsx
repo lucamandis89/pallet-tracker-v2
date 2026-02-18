@@ -11,19 +11,42 @@ export default function DashboardPage() {
     depots: 0,
     pallets: 0,
     scans: 0,
+    lostPallets: 0,
   });
   const [recentScans, setRecentScans] = useState<storage.ScanEvent[]>([]);
+  const [typeDistribution, setTypeDistribution] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const drivers = storage.getDrivers().length;
     const shops = storage.getShops().length;
     const depots = storage.getDepots().length;
-    const pallets = storage.getPallets().length;
+    const pallets = storage.getPallets();
     const history = storage.getHistory();
-    const scans = history.length;
 
-    setStats({ drivers, shops, depots, pallets, scans });
+    // Conta pallet per tipo
+    const typeCount: Record<string, number> = {};
+    pallets.forEach((p) => {
+      const type = p.type === "ALTRO" && p.typeCustom ? p.typeCustom : p.type || "Non specificato";
+      typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+
+    // Pallet persi (non visti da 30 giorni)
+    const lost = pallets.filter((p) => {
+      if (!p.lastSeenTs) return true;
+      const daysDiff = (Date.now() - p.lastSeenTs) / (1000 * 60 * 60 * 24);
+      return daysDiff > 30;
+    }).length;
+
+    setStats({
+      drivers,
+      shops,
+      depots,
+      pallets: pallets.length,
+      scans: history.length,
+      lostPallets: lost,
+    });
     setRecentScans(history.slice(0, 5));
+    setTypeDistribution(typeCount);
   }, []);
 
   const cardStyle: React.CSSProperties = {
@@ -38,32 +61,11 @@ export default function DashboardPage() {
   const statNumberStyle = { fontSize: 32, fontWeight: 700, color: "#1e88e5" };
   const statLabelStyle = { fontSize: 14, opacity: 0.7, fontWeight: 500 };
 
-  const btnStyle = (bg: string) => ({
-    display: "inline-block",
-    padding: "12px 24px",
-    background: bg,
-    color: "white",
-    textDecoration: "none",
-    borderRadius: 30,
-    fontWeight: 600,
-    fontSize: 14,
-  });
-
   return (
     <div style={{ padding: 16, maxWidth: 1000, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 20 }}>📊 Dashboard</h1>
 
-      {/* Pulsante per nuova scansione */}
-      <div style={{ ...cardStyle, marginBottom: 20, textAlign: "center" }}>
-        <Link href="/pallets" style={btnStyle("#d32f2f")}>
-          📷 Scansiona Pedana
-        </Link>
-        <p style={{ fontSize: 14, opacity: 0.7, marginTop: 8 }}>
-          Vai alla pagina pallet per scansionare codici QR.
-        </p>
-      </div>
-
-      {/* Statistiche */}
+      {/* Statistiche principali */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px,1fr))", gap: 16, marginBottom: 30 }}>
         <div style={cardStyle}>
           <div style={statNumberStyle}>{stats.drivers}</div>
@@ -85,13 +87,36 @@ export default function DashboardPage() {
           <div style={statNumberStyle}>{stats.scans}</div>
           <div style={statLabelStyle}>Scansioni</div>
         </div>
+        <div style={cardStyle}>
+          <div style={{ ...statNumberStyle, color: stats.lostPallets > 0 ? "#d32f2f" : "#1e88e5" }}>
+            {stats.lostPallets}
+          </div>
+          <div style={statLabelStyle}>Pallet persi</div>
+        </div>
+      </div>
+
+      {/* Distribuzione per tipo */}
+      <div style={{ ...cardStyle, textAlign: "left", marginBottom: 30 }}>
+        <h3>📊 Distribuzione per tipo</h3>
+        {Object.keys(typeDistribution).length === 0 ? (
+          <p>Nessun dato</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {Object.entries(typeDistribution).map(([type, count]) => (
+              <li key={type} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eee" }}>
+                <span>{type}</span>
+                <span style={{ fontWeight: 700 }}>{count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Ultime scansioni */}
-      <div style={{ ...cardStyle, textAlign: "left", padding: 20 }}>
-        <h2 style={{ marginTop: 0, fontSize: 20 }}>🔄 Ultime scansioni</h2>
+      <div style={{ ...cardStyle, textAlign: "left" }}>
+        <h3>🔄 Ultime scansioni</h3>
         {recentScans.length === 0 ? (
-          <p style={{ opacity: 0.6 }}>Nessuna scansione recente.</p>
+          <p>Nessuna scansione recente.</p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0 }}>
             {recentScans.map((scan) => (
@@ -105,14 +130,6 @@ export default function DashboardPage() {
             ))}
           </ul>
         )}
-      </div>
-
-      {/* Link rapidi */}
-      <div style={{ marginTop: 30, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link href="/drivers" style={btnStyle("#1e88e5")}>Gestione Autisti</Link>
-        <Link href="/shops" style={btnStyle("#43a047")}>Gestione Negozi</Link>
-        <Link href="/depots" style={btnStyle("#fb8c00")}>Gestione Depositi</Link>
-        <Link href="/pallets" style={btnStyle("#8e24aa")}>Gestione Pallet</Link>
       </div>
     </div>
   );
