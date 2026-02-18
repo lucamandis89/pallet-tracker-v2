@@ -1,94 +1,58 @@
 "use client";
 
-export default function HomePage() {
-  const btnStyle = (bg: string) => ({
-    width: "100%",
-    padding: "18px 16px",
-    borderRadius: 18,
-    border: "none",
-    fontWeight: 900 as const,
-    fontSize: 18,
-    cursor: "pointer",
-    color: "white",
-    background: bg,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    textDecoration: "none",
-  });
+import Link from "next/link";
 
-  const cardStyle = {
-    marginTop: 18,
-    padding: 16,
-    borderRadius: 18,
-    border: "1px solid #e6e6e6",
+export default function HomePage() {
+  // Stili presi dalle altre pagine per coerenza
+  const cardStyle: React.CSSProperties = {
     background: "white",
+    border: "1px solid #e9e9e9",
+    borderRadius: 16,
+    padding: 20,
+    boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
   };
 
+  const btnStyle = (bg: string, color = "white") => ({
+    padding: "14px 20px",
+    borderRadius: 14,
+    border: "none",
+    fontWeight: 900 as const,
+    cursor: "pointer",
+    background: bg,
+    color,
+    textDecoration: "none",
+    display: "inline-block",
+    textAlign: "center" as const,
+    fontSize: 16,
+  });
+
   return (
-    <div style={{ padding: 16, maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ fontSize: 38 }}>📦</div>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 34 }}>Pallet Tracker</h1>
-          <div style={{ opacity: 0.8, fontWeight: 700 }}>
-            Gestione pedane e tracking con QR + GPS in tempo reale.
-          </div>
-        </div>
-      </div>
-
-      <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
-        <a href="/scan" style={btnStyle("#0b1220")}>
-          📷 Scansiona QR Pedana
-        </a>
-
-        <a href="/pallets" style={btnStyle("#2e7d32")}>
-          🧱 Registro Pedane
-        </a>
-
-        <a href="/stock" style={btnStyle("#6a1b9a")}>
-          📦 Giacenze (Stock)
-        </a>
-
-        <a href="/missing" style={btnStyle("#e53935")}>
-          🚨 Pedane Mancanti
-        </a>
-
-        <a href="/drivers" style={btnStyle("#1e88e5")}>
-          🚚 Gestione Autisti
-        </a>
-
-        <a href="/shops" style={btnStyle("#1b9a4a")}>
-          🏪 Gestione Negozi
-        </a>
-
-        <a href="/depots" style={btnStyle("#fb8c00")}>
-          🏭 Depositi
-        </a>
-
-        <a href="/history" style={btnStyle("#6a1b9a")}>
-          📌 Storico Scansioni
-        </a>
-      </div>
-
+    <div style={{ padding: 16, maxWidth: 600, margin: "0 auto" }}>
       <div style={cardStyle}>
-        <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 8 }}>
-          🔥 Funzioni principali attive:
-        </div>
-        <div style={{ lineHeight: 1.6 }}>
-          ✅ Scansione QR pedana
-          <br />
-          ✅ Salvataggio posizione GPS
-          <br />
-          ✅ Registro pedane (stato + posizione)
-          <br />
-          ✅ Giacenze per negozio + storico movimenti stock + Export CSV
-          <br />
-          ✅ Storico scansioni + Export CSV
-          <br />
-          ✅ Pedane mancanti (fuori deposito da X giorni) + Export CSV
-        </div>
+        <h1 style={{ fontSize: 32, marginBottom: 8, marginTop: 0 }}>
+          📦 Pallet Tracker
+        </h1>
+        <p style={{ fontSize: 18, opacity: 0.8, marginBottom: 24 }}>
+          Benvenuto nel sistema di gestione.
+        </p>
+
+        <nav style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <Link href="/dashboard" style={btnStyle("#1e88e5")}>
+            📊 Dashboard
+          </Link>
+          <Link href="/drivers" style={btnStyle("#2e7d32")}>
+            🚚 Autisti
+          </Link>
+          <Link href="/shops" style={btnStyle("#6a1b9a")}>
+            🏪 Negozi
+          </Link>
+          <Link href="/depots" style={btnStyle("#b85e00")}>
+            🏭 Depositi
+          </Link>
+          <Link href="/pallets" style={btnStyle("#c2185b")}>
+            📦 Pallet
+          </Link>
+        </nav>
       </div>
     </div>
   );
