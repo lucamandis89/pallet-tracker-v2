@@ -59,6 +59,7 @@ export type DepotItem = {
 export type ShopItem = {
   id: string;
   name: string;
+  code?: string;        // <-- AGGIUNTO
   phone?: string;
   address?: string;
   lat?: number;
@@ -378,6 +379,7 @@ export function addShop(data: Omit<ShopItem, "id">): ShopItem {
   const it: ShopItem = {
     id: uid("shop"),
     name: (data.name || "").trim(),
+    code: (data.code || "").trim() || undefined,   // <-- AGGIUNTO
     phone: (data.phone || "").trim() || undefined,
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
