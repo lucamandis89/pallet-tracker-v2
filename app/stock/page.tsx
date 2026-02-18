@@ -17,7 +17,6 @@ export default function StockPage() {
   const [rows, setRows] = useState(storage.getStockRows());
   const [moves, setMoves] = useState(storage.getStockMoves());
 
-  // form movimento
   const [palletType, setPalletType] = useState(PALLET_TYPES[0]);
   const [qty, setQty] = useState<number>(1);
 
@@ -111,19 +110,20 @@ export default function StockPage() {
     }
   }
 
+  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportStockCsv() {
     const flat: any[][] = [];
     for (const g of grouped) {
-      const loc = `${g.kind}:${nameOf(g.kind, g.id)}`;
       for (const [t, q] of Object.entries(g.byType)) {
         flat.push([g.kind, g.id, nameOf(g.kind, g.id), t, q]);
       }
     }
-    storage.downloadCsv("stock_giacenze.csv", ["locationKind", "locationId", "locationName", "palletType", "qty"], flat);
+    storage.exportCsv("stock_giacenze.csv", ["locationKind", "locationId", "locationName", "palletType", "qty"], flat);
   }
 
+  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportMovesCsv() {
-    storage.downloadCsv(
+    storage.exportCsv(
       "stock_movimenti.csv",
       ["ts", "palletType", "qty", "fromKind", "fromId", "fromName", "toKind", "toId", "toName", "note"],
       moves.map((m) => [
