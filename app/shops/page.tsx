@@ -70,7 +70,7 @@ export default function ShopsPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo negozio?")) return;
-    storage.removeShop(id);
+    storage.deleteShop(id); // <-- MODIFICATO: era removeShop
     reload();
     if (editingId === id) resetForm();
   }
@@ -142,7 +142,6 @@ export default function ShopsPage() {
     }
   }
 
-  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportCsv() {
     const all = storage.getShops();
     storage.exportCsv(
