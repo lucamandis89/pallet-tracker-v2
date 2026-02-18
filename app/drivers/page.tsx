@@ -68,7 +68,7 @@ export default function DriversPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo autista?")) return;
-    storage.removeDriver(id);
+    storage.deleteDriver(id); // <-- MODIFICATO: era removeDriver
     reload();
     if (editingId === id) resetForm();
   }
@@ -137,7 +137,6 @@ export default function DriversPage() {
     }
   }
 
-  // ⬇️ MODIFICATA: usa storage.exportCsv
   function exportCsv() {
     const all = storage.getDrivers();
     storage.exportCsv(
