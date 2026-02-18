@@ -34,7 +34,7 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
-/** ✅ Aggiunto campo notes */
+/** Aggiunto createdAt */
 export type DriverItem = {
   id: string;
   name: string;
@@ -43,6 +43,7 @@ export type DriverItem = {
   lat?: number;
   lng?: number;
   notes?: string;
+  createdAt?: number; // opzionale per retrocompatibilità
 };
 
 export type DepotItem = {
@@ -53,6 +54,7 @@ export type DepotItem = {
   lat?: number;
   lng?: number;
   notes?: string;
+  createdAt?: number;
 };
 
 export type ShopItem = {
@@ -63,6 +65,7 @@ export type ShopItem = {
   lat?: number;
   lng?: number;
   notes?: string;
+  createdAt?: number;
 };
 
 export type StockRow = {
@@ -293,7 +296,6 @@ export function setDrivers(items: DriverItem[]) {
   localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 200)));
 }
 
-/** ✅ richiesto da /app/drivers/page.tsx */
 export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
   const items = getDrivers();
   const it: DriverItem = {
@@ -303,7 +305,8 @@ export function addDriver(data: Omit<DriverItem, "id">): DriverItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
-    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
+    notes: (data.notes || "").trim() || undefined,
+    createdAt: Date.now(), // ora presente
   };
   items.unshift(it);
   setDrivers(items);
@@ -333,7 +336,6 @@ export function setDepots(items: DepotItem[]) {
   localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 200)));
 }
 
-/** (utile se nella pagina depositi hai addDepot) */
 export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
   const items = getDepots();
   const it: DepotItem = {
@@ -343,7 +345,8 @@ export function addDepot(data: Omit<DepotItem, "id">): DepotItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
-    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
+    notes: (data.notes || "").trim() || undefined,
+    createdAt: Date.now(),
   };
   items.unshift(it);
   setDepots(items);
@@ -373,7 +376,6 @@ export function setShops(items: ShopItem[]) {
   localStorage.setItem(KEY_SHOPS, JSON.stringify(items.slice(0, 500)));
 }
 
-/** ✅ richiesto da /app/shops/page.tsx */
 export function addShop(data: Omit<ShopItem, "id">): ShopItem {
   const items = getShops();
   const it: ShopItem = {
@@ -383,7 +385,8 @@ export function addShop(data: Omit<ShopItem, "id">): ShopItem {
     address: (data.address || "").trim() || undefined,
     lat: typeof data.lat === "number" ? data.lat : undefined,
     lng: typeof data.lng === "number" ? data.lng : undefined,
-    notes: (data.notes || "").trim() || undefined, // ✅ aggiunto
+    notes: (data.notes || "").trim() || undefined,
+    createdAt: Date.now(),
   };
   items.unshift(it);
   setShops(items);
