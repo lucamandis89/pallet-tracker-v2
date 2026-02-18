@@ -83,6 +83,28 @@ export default function QrGeneratorPage() {
     marginBottom: 10,
   };
 
+  const downloadPNG = () => {
+    const svg = document.querySelector("svg");
+    if (!svg) return;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const link = document.createElement("a");
+      link.download = `QR-${generatedCode}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    };
+    img.src = url;
+  };
+
   return (
     <div style={{ padding: 16, maxWidth: 500, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, marginBottom: 6 }}>🖨️ Genera QR Pedana</h1>
@@ -153,28 +175,7 @@ export default function QrGeneratorPage() {
                 Salva nel sistema
               </button>
               <button
-                onClick={() => {
-                  const svg = document.querySelector("svg");
-                  if (svg) {
-                    const canvas = document.createElement("canvas");
-                    const ctx = canvas.getContext("2d");
-                    const img = new Image();
-                    const svgData = new XMLSerializer().serializeToString(svg);
-                    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-                    const url = URL.createObjectURL(svgBlob);
-                    img.onload = () => {
-                      canvas.width = img.width;
-                      canvas.height = img.height;
-                      ctx?.drawImage(img, 0, 0);
-                      URL.revokeObjectURL(url);
-                      const link = document.createElement("a");
-                      link.download = `QR-${generatedCode}.png`;
-                      link.href = canvas.toDataURL();
-                      link.click();
-                    };
-                    img.src = url;
-                  }
-                }}
+                onClick={downloadPNG}
                 style={{
                   padding: "12px 24px",
                   background: "#ffb300",

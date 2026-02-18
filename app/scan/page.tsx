@@ -28,14 +28,12 @@ export default function ScanPage() {
   const [shops, setShops] = useState<storage.ShopItem[]>([]);
   const [drivers, setDrivers] = useState<storage.DriverItem[]>([]);
 
-  // Carica le liste
   useEffect(() => {
     setDepots(storage.getDepots());
     setShops(storage.getShops());
     setDrivers(storage.getDrivers());
   }, []);
 
-  // Avvia scanner
   useEffect(() => {
     if (!scannerRef.current && !showManualInput) {
       scannerRef.current = new Html5QrcodeScanner(
@@ -60,28 +58,23 @@ export default function ScanPage() {
   }, [showManualInput]);
 
   const handleCode = async (code: string) => {
-    // Ferma scanner
     if (scannerRef.current) {
       scannerRef.current.clear();
       scannerRef.current = null;
     }
     setScannerReady(false);
 
-    // Ottieni posizione e indirizzo
     let lat, lng, accuracy, address;
     try {
       const pos = await storage.getCurrentPosition();
       lat = pos.lat;
       lng = pos.lng;
       accuracy = pos.accuracy;
-
-      // Reverse geocoding con rate limit
       address = await storage.reverseGeocodeWithRateLimit(lat, lng);
     } catch (err) {
       console.warn("Posizione non disponibile", err);
     }
 
-    // Registra scansione con indirizzo (converte null in undefined)
     storage.addHistory({
       code,
       ts: Date.now(),
@@ -92,7 +85,6 @@ export default function ScanPage() {
       source: "qr",
     });
 
-    // Aggiorna o crea pallet con ultimo indirizzo
     const existing = storage.findPalletByCode(code);
     if (existing) {
       storage.upsertPallet({
@@ -114,7 +106,6 @@ export default function ScanPage() {
       });
     }
 
-    // Mostra form movimento
     setScanResult(code);
     setShowMovementForm(true);
   };
@@ -133,7 +124,6 @@ export default function ScanPage() {
       return;
     }
 
-    // Ottieni nomi
     let fromName = "", toName = "";
     if (movementData.fromKind === "DEPOSITO") {
       fromName = depots.find(d => d.id === movementData.fromId)?.name || "";
@@ -151,7 +141,6 @@ export default function ScanPage() {
       toName = drivers.find(d => d.id === movementData.toId)?.name || "";
     }
 
-    // Crea movimento
     storage.addMovement({
       palletCode: scanResult!,
       fromKind: movementData.fromKind as storage.StockLocationKind,
@@ -164,11 +153,9 @@ export default function ScanPage() {
       note: movementData.note,
     });
 
-    // Messaggio di conferma
     setMessage({ text: `✅ Movimento registrato`, type: "success" });
     setTimeout(() => setMessage(null), 2000);
 
-    // Reset e ritorno alla scansione
     setShowMovementForm(false);
     setScanResult(null);
     setMovementData({ fromKind: "", fromId: "", toKind: "", toId: "", note: "" });
@@ -257,7 +244,6 @@ export default function ScanPage() {
         </>
       )}
 
-      {/* Form movimento */}
       {showMovementForm && scanResult && (
         <div style={{ marginTop: 20, textAlign: "left" }}>
           <h3>Registra movimento per {scanResult}</h3>
@@ -346,7 +332,6 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* Messaggio di conferma */}
       {message && (
         <div
           style={{

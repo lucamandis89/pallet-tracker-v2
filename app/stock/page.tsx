@@ -243,7 +243,11 @@ export default function StockPage() {
         </div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 10, gridTemplateColumns: "1fr 1fr" }}>
-          <select value={fromKind} onChange={(e) => setFromKind(e.target.value as storage.StockLocationKind)} style={input}>
+          <select
+            value={fromKind}
+            onChange={(e) => setFromKind(e.target.value as storage.StockLocationKind)}
+            style={input}
+          >
             <option value="DEPOSITO">Deposito</option>
             <option value="NEGOZIO">Negozio</option>
             <option value="AUTISTA">Autista</option>
@@ -261,7 +265,11 @@ export default function StockPage() {
             )}
           </select>
 
-          <select value={toKind} onChange={(e) => setToKind(e.target.value as storage.StockLocationKind)} style={input}>
+          <select
+            value={toKind}
+            onChange={(e) => setToKind(e.target.value as storage.StockLocationKind)}
+            style={input}
+          >
             <option value="DEPOSITO">Deposito</option>
             <option value="NEGOZIO">Negozio</option>
             <option value="AUTISTA">Autista</option>
@@ -364,4 +372,4 @@ export default function StockPage() {
       </div>
     </div>
   );
-      }
+}
