@@ -34,14 +34,11 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
-/** ✅ FIX: aggiunti campi usati in app/drivers/page.tsx */
 export type DriverItem = {
   id: string;
   name: string;
   phone?: string;
   address?: string;
-  lat?: number;
-  lng?: number;
 };
 
 export type DepotItem = { id: string; name: string };
@@ -262,7 +259,7 @@ export function upsertPallet(
 }
 
 /* =========================================================
-   LISTE (drivers/depots/shops)
+   DRIVERS
    ========================================================= */
 
 export function getDrivers(): DriverItem[] {
@@ -275,6 +272,59 @@ export function setDrivers(items: DriverItem[]) {
   localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 50)));
 }
 
+export function addDriver(data: {
+  name: string;
+  phone?: string;
+  address?: string;
+}): DriverItem {
+  const items = getDrivers();
+
+  const item: DriverItem = {
+    id: uid("driver"),
+    name: data.name.trim(),
+    phone: data.phone?.trim() || "",
+    address: data.address?.trim() || "",
+  };
+
+  items.unshift(item);
+  setDrivers(items);
+  return item;
+}
+
+export function updateDriver(
+  id: string,
+  patch: Partial<DriverItem>
+): DriverItem | null {
+  const items = getDrivers();
+  const idx = items.findIndex((d) => d.id === id);
+  if (idx === -1) return null;
+
+  items[idx] = {
+    ...items[idx],
+    ...patch,
+    name: patch.name !== undefined ? patch.name.trim() : items[idx].name,
+    phone: patch.phone !== undefined ? patch.phone.trim() : items[idx].phone,
+    address:
+      patch.address !== undefined ? patch.address.trim() : items[idx].address,
+  };
+
+  setDrivers(items);
+  return items[idx];
+}
+
+export function deleteDriver(id: string): boolean {
+  const items = getDrivers();
+  const next = items.filter((d) => d.id !== id);
+  if (next.length === items.length) return false;
+
+  setDrivers(next);
+  return true;
+}
+
+/* =========================================================
+   DEPOTS
+   ========================================================= */
+
 export function getDepots(): DepotItem[] {
   if (typeof window === "undefined") return [];
   return safeParse<DepotItem[]>(localStorage.getItem(KEY_DEPOTS), []);
@@ -284,6 +334,10 @@ export function setDepots(items: DepotItem[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 50)));
 }
+
+/* =========================================================
+   SHOPS
+   ========================================================= */
 
 export function getShops(): ShopItem[] {
   if (typeof window === "undefined") return [];
