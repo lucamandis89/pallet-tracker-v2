@@ -68,7 +68,7 @@ export default function DriversPage() {
 
   function del(id: string) {
     if (!confirm("Eliminare questo autista?")) return;
-    storage.deleteDriver(id); // <-- MODIFICATO: era removeDriver
+    storage.deleteDriver(id);
     reload();
     if (editingId === id) resetForm();
   }
@@ -150,7 +150,7 @@ export default function DriversPage() {
         d.lat ?? "",
         d.lng ?? "",
         d.notes || "",
-        new Date(d.createdAt).toISOString(),
+        d.createdAt ? new Date(d.createdAt).toISOString() : "",
       ])
     );
   }
@@ -306,7 +306,7 @@ export default function DriversPage() {
                 </div>
 
                 <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-                  Creato: {new Date(d.createdAt).toLocaleString()}
+                  Creato: {d.createdAt ? new Date(d.createdAt).toLocaleString() : "N/A"}
                 </div>
               </div>
             ))}
