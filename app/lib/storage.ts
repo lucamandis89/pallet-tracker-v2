@@ -34,7 +34,16 @@ export type PalletItem = {
   lastLocId?: string;
 };
 
-export type DriverItem = { id: string; name: string };
+/** ✅ FIX: aggiunti campi usati in app/drivers/page.tsx */
+export type DriverItem = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+};
+
 export type DepotItem = { id: string; name: string };
 export type ShopItem = { id: string; name: string };
 
@@ -253,18 +262,8 @@ export function upsertPallet(
 }
 
 /* =========================================================
-   LISTE (drivers/depots/shops) + CRUD
+   LISTE (drivers/depots/shops)
    ========================================================= */
-
-function normName(name: string): string {
-  return (name || "").trim().replace(/\s+/g, " ");
-}
-
-function sortByName<T extends { name: string }>(arr: T[]): T[] {
-  return [...arr].sort((a, b) => a.name.localeCompare(b.name, "it"));
-}
-
-/* ---- DRIVERS ---- */
 
 export function getDrivers(): DriverItem[] {
   if (typeof window === "undefined") return [];
@@ -276,52 +275,6 @@ export function setDrivers(items: DriverItem[]) {
   localStorage.setItem(KEY_DRIVERS, JSON.stringify(items.slice(0, 50)));
 }
 
-export function addDriver(name: string): DriverItem | null {
-  if (typeof window === "undefined") return null;
-  const n = normName(name);
-  if (!n) return null;
-
-  const items = getDrivers();
-  const exists = items.some((d) => d.name.toLowerCase() === n.toLowerCase());
-  if (exists) return null;
-
-  const newItem: DriverItem = { id: uid("drv"), name: n };
-  const next = sortByName([newItem, ...items]);
-  setDrivers(next);
-  return newItem;
-}
-
-export function updateDriver(id: string, name: string): boolean {
-  if (typeof window === "undefined") return false;
-  const n = normName(name);
-  if (!id || !n) return false;
-
-  const items = getDrivers();
-  const idx = items.findIndex((d) => d.id === id);
-  if (idx < 0) return false;
-
-  // evita doppioni per nome
-  const dup = items.some(
-    (d) => d.id !== id && d.name.toLowerCase() === n.toLowerCase()
-  );
-  if (dup) return false;
-
-  items[idx] = { ...items[idx], name: n };
-  setDrivers(sortByName(items));
-  return true;
-}
-
-export function removeDriver(id: string): boolean {
-  if (typeof window === "undefined") return false;
-  const items = getDrivers();
-  const next = items.filter((d) => d.id !== id);
-  if (next.length === items.length) return false;
-  setDrivers(next);
-  return true;
-}
-
-/* ---- DEPOTS ---- */
-
 export function getDepots(): DepotItem[] {
   if (typeof window === "undefined") return [];
   return safeParse<DepotItem[]>(localStorage.getItem(KEY_DEPOTS), []);
@@ -332,51 +285,6 @@ export function setDepots(items: DepotItem[]) {
   localStorage.setItem(KEY_DEPOTS, JSON.stringify(items.slice(0, 50)));
 }
 
-export function addDepot(name: string): DepotItem | null {
-  if (typeof window === "undefined") return null;
-  const n = normName(name);
-  if (!n) return null;
-
-  const items = getDepots();
-  const exists = items.some((d) => d.name.toLowerCase() === n.toLowerCase());
-  if (exists) return null;
-
-  const newItem: DepotItem = { id: uid("dep"), name: n };
-  const next = sortByName([newItem, ...items]);
-  setDepots(next);
-  return newItem;
-}
-
-export function updateDepot(id: string, name: string): boolean {
-  if (typeof window === "undefined") return false;
-  const n = normName(name);
-  if (!id || !n) return false;
-
-  const items = getDepots();
-  const idx = items.findIndex((d) => d.id === id);
-  if (idx < 0) return false;
-
-  const dup = items.some(
-    (d) => d.id !== id && d.name.toLowerCase() === n.toLowerCase()
-  );
-  if (dup) return false;
-
-  items[idx] = { ...items[idx], name: n };
-  setDepots(sortByName(items));
-  return true;
-}
-
-export function removeDepot(id: string): boolean {
-  if (typeof window === "undefined") return false;
-  const items = getDepots();
-  const next = items.filter((d) => d.id !== id);
-  if (next.length === items.length) return false;
-  setDepots(next);
-  return true;
-}
-
-/* ---- SHOPS ---- */
-
 export function getShops(): ShopItem[] {
   if (typeof window === "undefined") return [];
   return safeParse<ShopItem[]>(localStorage.getItem(KEY_SHOPS), []);
@@ -385,49 +293,6 @@ export function getShops(): ShopItem[] {
 export function setShops(items: ShopItem[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY_SHOPS, JSON.stringify(items.slice(0, 200)));
-}
-
-export function addShop(name: string): ShopItem | null {
-  if (typeof window === "undefined") return null;
-  const n = normName(name);
-  if (!n) return null;
-
-  const items = getShops();
-  const exists = items.some((d) => d.name.toLowerCase() === n.toLowerCase());
-  if (exists) return null;
-
-  const newItem: ShopItem = { id: uid("shop"), name: n };
-  const next = sortByName([newItem, ...items]);
-  setShops(next);
-  return newItem;
-}
-
-export function updateShop(id: string, name: string): boolean {
-  if (typeof window === "undefined") return false;
-  const n = normName(name);
-  if (!id || !n) return false;
-
-  const items = getShops();
-  const idx = items.findIndex((d) => d.id === id);
-  if (idx < 0) return false;
-
-  const dup = items.some(
-    (d) => d.id !== id && d.name.toLowerCase() === n.toLowerCase()
-  );
-  if (dup) return false;
-
-  items[idx] = { ...items[idx], name: n };
-  setShops(sortByName(items));
-  return true;
-}
-
-export function removeShop(id: string): boolean {
-  if (typeof window === "undefined") return false;
-  const items = getShops();
-  const next = items.filter((d) => d.id !== id);
-  if (next.length === items.length) return false;
-  setShops(next);
-  return true;
 }
 
 /* =========================================================
