@@ -155,6 +155,25 @@ export default function DriversPage() {
     );
   }
 
+  async function exportPdf() {
+    const all = storage.getDrivers();
+    await storage.exportPdf({
+      filename: "autisti.pdf",
+      title: "Elenco Autisti",
+      headers: ["ID", "Nome", "Telefono", "Indirizzo", "Lat", "Lng", "Note", "Creato il"],
+      rows: all.map((d) => [
+        d.id,
+        d.name,
+        d.phone || "",
+        d.address || "",
+        d.lat ?? "",
+        d.lng ?? "",
+        d.notes || "",
+        d.createdAt ? new Date(d.createdAt).toLocaleString() : "",
+      ]),
+    });
+  }
+
   const cardStyle: React.CSSProperties = {
     background: "white",
     border: "1px solid #e9e9e9",
@@ -258,7 +277,11 @@ export default function DriversPage() {
           </button>
 
           <button onClick={exportCsv} style={btn("#6a1b9a")}>
-            ⬇️ Export CSV
+            ⬇️ CSV
+          </button>
+
+          <button onClick={exportPdf} style={btn("#9c27b0")}>
+            📄 PDF
           </button>
         </div>
 
