@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import * as storage from "../lib/storage";
+import Link from "next/link";
 
 async function getMyPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
   return new Promise((resolve, reject) => {
@@ -155,6 +156,7 @@ export default function DriversPage() {
     );
   }
 
+  // Funzione per esportazione PDF
   async function exportPdf() {
     const all = storage.getDrivers();
     await storage.exportPdf({
@@ -190,6 +192,8 @@ export default function DriversPage() {
     cursor: "pointer",
     background: bg,
     color,
+    marginRight: 8,
+    marginBottom: 8,
   });
 
   const inputStyle: React.CSSProperties = {
@@ -338,9 +342,9 @@ export default function DriversPage() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <a href="/" style={{ fontWeight: 900, textDecoration: "none" }}>
+        <Link href="/" style={{ fontWeight: 900, textDecoration: "none" }}>
           ← Torna alla Home
-        </a>
+        </Link>
       </div>
     </div>
   );
