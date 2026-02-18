@@ -13,7 +13,7 @@ export type ScanEvent = {
   lat?: number;
   lng?: number;
   accuracy?: number;
-  address?: string;          // <-- NUOVO: nome del luogo
+  address?: string;
   source?: "qr" | "manual";
   declaredKind?: StockLocationKind;
   declaredId?: string;
@@ -47,7 +47,7 @@ export type PalletItem = {
   lastSeenTs?: number;
   lastLat?: number;
   lastLng?: number;
-  lastAddress?: string;      // <-- NUOVO: ultimo luogo
+  lastAddress?: string;
   lastSource?: "qr" | "manual";
   lastLocKind?: StockLocationKind;
   lastLocId?: string;
@@ -254,14 +254,13 @@ export async function getCurrentPosition(): Promise<{ lat: number; lng: number; 
   });
 }
 
-// Reverse geocoding con Nominatim (OpenStreetMap)
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'PalletTracker-App/1.0',  // Richiesto dalle policy di Nominatim
+        'User-Agent': 'PalletTracker-App/1.0',
       },
     });
 
@@ -271,7 +270,6 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
 
     const data = await response.json();
     
-    // Estrai il nome della località più significativa
     if (data.address) {
       const address = data.address;
       return address.city || 
@@ -291,14 +289,12 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
   }
 }
 
-// Rate limiter per rispettare 1 richiesta al secondo
 let lastGeocodeTime = 0;
 export async function reverseGeocodeWithRateLimit(lat: number, lng: number): Promise<string | null> {
   const now = Date.now();
   const timeSinceLastCall = now - lastGeocodeTime;
   
   if (timeSinceLastCall < 1000) {
-    // Aspetta il tempo rimanente per rispettare 1 req/sec
     await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLastCall));
   }
   
@@ -400,7 +396,6 @@ export function deletePallet(id: string) {
   setPallets(items);
 }
 
-// Genera un codice univoco per nuova pedana
 export function generatePalletCode(type: PalletType): string {
   const prefix = type.substring(0, 3).toUpperCase();
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -582,6 +577,30 @@ export function updateShop(id: string, patch: Partial<Omit<ShopItem, "id" | "com
 export function deleteShop(id: string) {
   const items = getShops().filter((x) => x.id !== id);
   setShops(items);
+}
+
+/* =========================================================
+   STOCK
+   ========================================================= */
+
+export function getStockRows(): StockRow[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<StockRow[]>(localStorage.getItem(KEY_STOCK), []);
+}
+
+export function setStockRows(items: StockRow[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY_STOCK, JSON.stringify(items));
+}
+
+export function getStockMoves(): StockMove[] {
+  if (typeof window === "undefined") return [];
+  return safeParse<StockMove[]>(localStorage.getItem(KEY_STOCK_MOVES), []);
+}
+
+export function setStockMoves(items: StockMove[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY_STOCK_MOVES, JSON.stringify(items.slice(0, 5000)));
 }
 
 /* =========================================================
