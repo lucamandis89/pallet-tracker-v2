@@ -3,57 +3,69 @@
 import Link from "next/link";
 
 export default function HomePage() {
-  // Stili presi dalle altre pagine per coerenza
-  const cardStyle: React.CSSProperties = {
-    background: "white",
-    border: "1px solid #e9e9e9",
-    borderRadius: 16,
-    padding: 20,
-    boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-  };
-
-  const btnStyle = (bg: string, color = "white") => ({
-    padding: "14px 20px",
-    borderRadius: 14,
-    border: "none",
-    fontWeight: 900 as const,
-    cursor: "pointer",
+  const bigButtonStyle = (bg: string) => ({
+    display: "block",
+    padding: "30px",
     background: bg,
-    color,
+    color: "white",
     textDecoration: "none",
-    display: "inline-block",
+    borderRadius: "30px",
+    fontWeight: "bold",
+    fontSize: "28px",
     textAlign: "center" as const,
-    fontSize: 16,
+    marginBottom: "16px",
+    boxShadow: "0 8px 16px rgba(0,0,0,0.2)",
+    transition: "transform 0.1s ease",
+    cursor: "pointer",
+  });
+
+  const secondaryButtonStyle = (bg: string) => ({
+    display: "block",
+    padding: "20px",
+    background: bg,
+    color: "white",
+    textDecoration: "none",
+    borderRadius: "20px",
+    fontWeight: "bold",
+    fontSize: "22px",
+    textAlign: "center" as const,
+    marginBottom: "12px",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
   });
 
   return (
-    <div style={{ padding: 16, maxWidth: 600, margin: "0 auto" }}>
-      <div style={cardStyle}>
-        <h1 style={{ fontSize: 32, marginBottom: 8, marginTop: 0 }}>
-          📦 Pallet Tracker
-        </h1>
-        <p style={{ fontSize: 18, opacity: 0.8, marginBottom: 24 }}>
-          Benvenuto nel sistema di gestione.
-        </p>
+    <div style={{ padding: 20, maxWidth: 500, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 40, textAlign: "center", marginBottom: 30, color: "#1e3c72" }}>
+        📦 PALLET TRACKER
+      </h1>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Link href="/dashboard" style={btnStyle("#1e88e5")}>
-            📊 Dashboard
-          </Link>
-          <Link href="/drivers" style={btnStyle("#2e7d32")}>
-            🚚 Autisti
-          </Link>
-          <Link href="/shops" style={btnStyle("#6a1b9a")}>
-            🏪 Negozi
-          </Link>
-          <Link href="/depots" style={btnStyle("#b85e00")}>
-            🏭 Depositi
-          </Link>
-          <Link href="/pallets" style={btnStyle("#c2185b")}>
-            📦 Pallet
-          </Link>
-        </nav>
-      </div>
+      <Link href="/scan" style={bigButtonStyle("#d32f2f")}>
+        📷 SCANSIONA PEDANA
+      </Link>
+
+      <Link href="/dashboard" style={secondaryButtonStyle("#1e88e5")}>
+        📊 DASHBOARD
+      </Link>
+
+      <Link href="/pallets" style={secondaryButtonStyle("#c2185b")}>
+        📋 ELENCO PEDANE
+      </Link>
+
+      <Link href="/drivers" style={secondaryButtonStyle("#2e7d32")}>
+        🚚 AUTISTI
+      </Link>
+
+      <Link href="/shops" style={secondaryButtonStyle("#6a1b9a")}>
+        🏪 NEGOZI
+      </Link>
+
+      <Link href="/depots" style={secondaryButtonStyle("#b85e00")}>
+        🏭 DEPOSITI
+      </Link>
+
+      <p style={{ textAlign: "center", marginTop: 30, opacity: 0.7, fontSize: 14 }}>
+        Premi il pulsante grande per una scansione rapida
+      </p>
     </div>
   );
 }
