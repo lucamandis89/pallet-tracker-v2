@@ -1,7 +1,7 @@
 "use client";
 
 /* =========================================================
-   STORAGE + EXPORT (CSV / PDF)
+   STORAGE + EXPORT (CSV / PDF) + GEOCODING
    ========================================================= */
 
 export type StockLocationKind = "DEPOSITO" | "NEGOZIO" | "AUTISTA";
@@ -13,6 +13,7 @@ export type ScanEvent = {
   lat?: number;
   lng?: number;
   accuracy?: number;
+  address?: string;          // <-- NUOVO: nome del luogo
   source?: "qr" | "manual";
   declaredKind?: StockLocationKind;
   declaredId?: string;
@@ -46,6 +47,7 @@ export type PalletItem = {
   lastSeenTs?: number;
   lastLat?: number;
   lastLng?: number;
+  lastAddress?: string;      // <-- NUOVO: ultimo luogo
   lastSource?: "qr" | "manual";
   lastLocKind?: StockLocationKind;
   lastLocId?: string;
@@ -230,7 +232,7 @@ export async function exportPdf(opts: {
 }
 
 /* =========================================================
-   GEOLOCALIZZAZIONE
+   GEOLOCALIZZAZIONE E REVERSE GEOCODING
    ========================================================= */
 
 export async function getCurrentPosition(): Promise<{ lat: number; lng: number; accuracy?: number }> {
@@ -250,6 +252,58 @@ export async function getCurrentPosition(): Promise<{ lat: number; lng: number; 
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   });
+}
+
+// Reverse geocoding con Nominatim (OpenStreetMap)
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'PalletTracker-App/1.0',  // Richiesto dalle policy di Nominatim
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Estrai il nome della località più significativa
+    if (data.address) {
+      const address = data.address;
+      return address.city || 
+             address.town || 
+             address.village || 
+             address.hamlet ||
+             address.suburb ||
+             address.road ||
+             data.display_name?.split(',')[0] || 
+             null;
+    }
+    
+    return data.display_name?.split(',')[0] || null;
+  } catch (error) {
+    console.warn('Reverse geocoding failed:', error);
+    return null;
+  }
+}
+
+// Rate limiter per rispettare 1 richiesta al secondo
+let lastGeocodeTime = 0;
+export async function reverseGeocodeWithRateLimit(lat: number, lng: number): Promise<string | null> {
+  const now = Date.now();
+  const timeSinceLastCall = now - lastGeocodeTime;
+  
+  if (timeSinceLastCall < 1000) {
+    // Aspetta il tempo rimanente per rispettare 1 req/sec
+    await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLastCall));
+  }
+  
+  lastGeocodeTime = Date.now();
+  return reverseGeocode(lat, lng);
 }
 
 /* =========================================================
@@ -329,6 +383,7 @@ export function upsertPallet(
       lastSeenTs: update.lastSeenTs,
       lastLat: update.lastLat,
       lastLng: update.lastLng,
+      lastAddress: update.lastAddress,
       lastSource: update.lastSource,
       lastLocKind: update.lastLocKind,
       lastLocId: update.lastLocId,
